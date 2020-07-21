@@ -1,0 +1,248 @@
+\input texinfo
+@documentencoding utf-8
+@setfilename olc
+@settitle Open Location Code for emacs
+
+@titlepage
+@title Open Location Code for emacs
+@author David Byers
+@end titlepage
+
+@node Top
+@unnumbered Introduction
+
+Open Location Code is a way to encode locations in a format that is
+easier for people (not computers) to use than latitude and longitude.
+
+For example, the code 9FCQ9HXG+4C refers to the location 58°23'52.1"N
+15°34'33.8"E (58.397813, 15.576063).
+
+Codes can be shortened by removing characters from the beginning
+andding a reference location: 9HXG+4C with the reference "Linköping"
+would refer to the same set of coordinates.
+
+For details about open location code and implementations in other
+languages, see https://github.com/google/open-location-code.
+
+@menu
+* Data types::  Data types defined by olc.
+* Functions::   Functions defined by olc.
+* Index::       Type and function index.
+@end menu
+
+@node Data types,Functions,,Top
+@unnumbered Data types
+
+olc defines two data types: olc-area and olc-parse. The former
+represents the result of decoding a code and the latter is the result
+of parsing a code, and is mostly for internal use.
+
+@menu
+* olc-area::      The olc-area data type.
+* olc-parse::     The olc-parse data type.
+@end menu
+
+@node olc-area,olc-parse,,Data types
+@unnumberedsec olc-area
+
+An olc-area is the area represented by an open location code. All fields
+are read-only once the object has been created.
+
+@defun olc-area-create &key latlo lonlo lathi lonhi
+Creates an olc-area with southwest corner (@var{latlo},@var{lonlo}) and
+northeast corner (@var{lathi},@var{lonhi}).
+@end defun
+
+@defun olc-area-p obj
+Return non-@code{nil} if @var{obj} is an olc-area.
+@end defun
+
+@defun olc-area-latlo area
+Return the southern latitude of @var{area}.
+@end defun
+
+@defun olc-area-lonlo area
+Return the eastern longitude of @var{area}.
+@end defun
+
+@defun olc-area-lathi area
+Return the northern latitude of @var{area}.
+@end defun
+
+@defun olc-area-lonhi area
+Return the western longitude of @var{area}.
+@end defun
+
+@defun olc-area-lat area
+Return the latitude of the center of @var{area}.
+@end defun
+
+@defun olc-area-lon area
+Return the longitude of the center of @var{area}.
+@end defun
+
+
+@node olc-parse,,olc-area,Data types
+@unnumberedsec olc-parse
+
+The olc-parse is a structure mainly used internally. Unless you call
+@code{olc-parse-code} you will probably never see one.
+
+@defun olc-parse-create &key pairs grid short prec code
+Create an olc-parse structure. Don't call this: use
+@code{olc-parse-code} instead.
+@end defun
+
+@defun olc-parse-pairs parse
+Returns the list of parsed pairs in @var{parse}. Pairs are first ten
+digits of a full code (five pairs). For padded and shortened codes,
+the list of pairs could be shorter.
+@end defun
+
+@defun olc-parse-grid parse
+Returns the list of parsed grid digits in @var{parse}. Grid digits are
+all (up to five) the digits that follow the last pair.
+@end defun
+
+@defun olc-parse-short parse
+Return non-@code{nil} if @var{parse} represents a shortened code.
+@end defun
+
+@defun olc-parse-precision parse
+Return the precision in digits of the parsed code in @var{parse}. A
+full code without padding will have precision 8, 10, or more. Full
+codes with padding have precision 6 or lower. Shortened codes should
+have at least a precision of 8 since padded codes can't be shortened,
+but don't count on this.
+@end defun
+
+
+@node Functions,,Data types,Top
+@unnumberedsec Functions
+
+@defun olc-encode lat lon len
+Encode a latitude @var{lat}, longitude @var{lon}, into an open
+location code of length @var{len}. The length is automatically clipped
+to between 2 and 15. (@code{olc-encode-error} is raised if the length
+is otherwise invalid (i.e. 3, 5, 7, or 9).
+
+@example
+@group
+(olc-encode 58.397813 15.576063 11)
+@result{} "9FCQ9HXG+4CG"
+(olc-encode 58.397813 15.576063 8)
+@result{} "9FCQ9HXG+"
+(olc-encode 58.397813 15.576063 4)
+@result{} "9FCQ0000+"
+@end group
+@end example
+@end defun
+
+@defun olc-decode code
+Decode @var{code} and return an @code{olc-area} representing the
+location. Raises @code{olc-parse-error} if the code can't be parsed,
+and @code{olc-decode-error} if it can't be decoded (e.g. a padded
+shortened code, a padded code with grid coordinates, an empty code,
+and so forth). Returns an olc-area structure.
+
+@example
+@group
+(olc-decode "9FCQ9HXG+4CG")
+@result{} #s(olc-area 58.397800000000004 15.5760625 58.397825000000005 15.57609375)
+(olc-area-lat (olc-decode "9FCQ9HXG+4CG"))
+@result{} 58.3978125
+(olc-area-lon (olc-decode "9FCQ9HXG+4CG"))
+@result{} 15.576078125
+@end group
+@end example
+@end defun
+
+@defun olc-shorten code lat lon &optional limit
+Shorten @var{code}, which must be a full open location code, using
+latitude @var{lat} and longitude @var{lon} as the reference. If
+@var{limit} is specified, then the code will be shortened by at most
+that many digits. If the code can't be shortened, the original code is
+returned. @code{olc-shorten-error} is raised if @var{code} is a padded
+or shortened code, of if @var{limit} is not even.
+
+@example
+@group
+(olc-shorten "9C3W9QCJ+2VX" 51.3701125 -1.217765625)
+@result{} "+2VX"
+(olc-shorten "9C3W9QCJ+2VX" 51.3701125 -1.217765625 4)
+@result{} "9QCJ+2VX"
+@end group
+@end example
+@end defun
+
+@defun olc-recover code lat lon &optional format
+Recover the closest point to coordinates @var{lat} and @var{lon} with
+a code that can be shortened to @var{code}. If @var{format} is
+@code{latlon}, then the center of the recovered area (@var{latitude} .
+@var{longitude}) is returned. If @var{format} is @code{area} (or any other
+value), the returned value is an full open location code.
+
+@example
+@group
+(olc-recover "+2VX" 51.3701125 -1.217765625)
+@result{} "9C3W9QCJ+2VX"
+(olc-recover "+2VX" 51.3701125 -1.217765625 'latlon)
+@result{} (51.370112500000005 . -1.2177656250000002)
+@end group
+@end example
+@end defun
+
+@defun olc-recover-string arg1 &optional arg2 arg3
+Recover a shortened code @i{without} the reference latitude and
+longitude.
+
+When called with one argument, it must be a string consisting of a
+shortened open location code followed by whitespace and a geographical
+location.
+
+When called with two strings, the first must be a shortened open
+location code and the second if the geographical location.
+
+Optionally, the last argument in either case can be a symbol
+indicating the format of the return value (see @code{olc-recover} for
+details).
+
+@example
+@group
+(olc-recover-string "M24Q+89 Mutitjulu")
+@result{} "5Q6HM24Q+89"
+(olc-recover-string "M24Q+89" "Mutitjulu")
+@result{} "5Q6HM24Q+89"
+(olc-recover-string "M24Q+89" "Mutitjulu" 'latlon)
+@result{} (-25.344187500000004 . 131.0384375)
+@end group
+@end example
+
+This function requires the @code{request} package to be installed, and
+uses the OpenStreetMap API to convert the geographical reference to
+coordinates. Please make sure you follow the acceptable use policy for
+the API (e.g., one request per second, tops, allowed).
+@end defun
+
+@defun olc-is-valid code
+Returns non-@code{nil} if @var{code} is a valid open location code.
+@end defun
+
+@defun olc-is-short code
+Returns non-@code{nil} if @var{code} is a valid short location code.
+Returns @code{nil} for valid short and for invalid codes.
+@end defun
+
+@defun olc-is-full code
+Returns non-@code{nil} if @var{code} is a valid full open location
+code. Returns @code{nil} for valid long and for invalid codes.
+@end defun
+
+
+@node Index,,Functions,Top
+@unnumbered Index
+
+@printindex tp
+@printindex fn
+
+@bye

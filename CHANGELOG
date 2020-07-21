@@ -1,0 +1,32 @@
+2020-07-21  David Byers  <david.byers@liu.se>
+
+	Wrote texinfo documentation:
+	* olc.el (olc-parse-length): Removed.
+	Updated documentation comment.
+	(olc-decode): Updated docstring.
+	(olc-encode): Updated docstring.
+	(olc-recover): Updated docstring.
+	(olc-shorten): Updated docstring.
+	(olc-recover-string): Updated docstring.
+
+	* olc.texi: New file.
+
+	Implement shorten:
+	* test/olctest.el (olctest-decode): Change olc-code-length to
+	olc-code-precision.
+	(olctest-shortcodes): Implement shorten tests.
+	(olctest-localtests): New function.
+
+	* olc.el
+	(olc-code-precision): New function.
+	(olc-latitude-precision): Change ffloor to floor.
+	(olc-shorten-error): New error.
+	(olc-clip-latitude): New function.
+	(olc-normalize-latitude): Use it. Convert to subst. Renamed length
+	to len to reduce confusion.
+	(olc-normalize-longitude): Convert to subst.
+	(olc-valid-char): Reimplemented missing function.
+	(olc-shorten): New function.
+	(olc-recover): Use olc-clip-latitude, not normalize.
+
+

@@ -64,15 +64,26 @@
       (kill-buffer buffer))))
 
 
-(defmacro olctest-run-tests (spec &rest body)
+(defmacro olctest-run-csv (spec &rest body)
   "Run open location code tests.
 
 \(fn (VAR LIST) BODY...)"
   (declare (indent 1) (debug ((form symbolp) body)))
   (let ((data (gensym "$olctest")))
-    `(let ((,data (olctest-read-csv ,(elt spec 0)))
-           ($olctest-results nil))
-       (setq foo ,data)
+    `(let* ((,data (olctest-read-csv ,(elt spec 0)))
+            ($olctest-results nil))
+       (dolist (,(elt spec 1) ,data)
+         ,@body)
+       (olctest-report-results $olctest-results))))
+
+(defmacro olctest-run-list (spec &rest body)
+  "Run open location code tests.
+
+\(fn (VAR LIST) BODY...)"
+  (declare (indent 1) (debug ((form symbolp) body)))
+  (let ((data (gensym "$olctest")))
+    `(let* ((,data ,(elt spec 0))
+            ($olctest-results nil))
        (dolist (,(elt spec 1) ,data)
          ,@body)
        (olctest-report-results $olctest-results))))
@@ -97,7 +108,7 @@
 
 (defun olctest-encode ()
   "Test encoding."
-  (olctest-run-tests ("encoding.csv" case)
+  (olctest-run-csv ("encoding.csv" case)
     (let ((code (olc-encode (alist-get 'latitude case)
                             (alist-get 'longitude case)
                             (alist-get 'length case))))
@@ -107,14 +118,14 @@
 
 (defun olctest-decode ()
   "Test decoding."
-  (olctest-run-tests ("decoding.csv" case)
+  (olctest-run-csv ("decoding.csv" case)
     (let ((area (olc-decode (alist-get 'code case)))
           (exp-latlo (alist-get 'latLo case))
           (exp-lathi (alist-get 'latHi case))
           (exp-lonlo (alist-get 'lngLo case))
           (exp-lonhi (alist-get 'lngHi case))
           (exp-len (alist-get 'length case)))
-      (unless (and (= exp-len (olc-code-length (alist-get 'code case)))
+      (unless (and (= exp-len (olc-code-precision (alist-get 'code case)))
                    (< (abs (- (olc-area-latlo area) exp-latlo)) olctest-decode-tolerance)
                    (< (abs (- (olc-area-lathi area) exp-lathi)) olctest-decode-tolerance)
                    (< (abs (- (olc-area-lonlo area) exp-lonlo)) olctest-decode-tolerance)
@@ -122,7 +133,7 @@
         (olctest-record-failure case
                                 (format "%d,%f,%f,%f,%f" exp-len exp-latlo exp-lonlo exp-lathi exp-lonhi)
                                 (format "%d,%f,%f,%f,%f"
-                                        (olc-code-length (alist-get 'code case))
+                                        (olc-code-precision (alist-get 'code case))
                                         (olc-area-latlo area)
                                         (olc-area-lonlo area)
                                         (olc-area-lathi area)
@@ -131,7 +142,7 @@
 
 (defun olctest-shortcodes ()
   "Test recovering."
-  (olctest-run-tests ("shortCodeTests.csv" case)
+  (olctest-run-csv ("shortCodeTests.csv" case)
     (let ((fullcode (alist-get 'fullcode case))
           (lat (alist-get 'lat case))
           (lon (alist-get 'lng case))
@@ -146,13 +157,15 @@
 
       ;; Test shorten
       (when (or (string= test-type "B") (string= test-type "S"))
-        ;; Shorten is not implemented
-        )
+        (let ((shortened (olc-shorten fullcode lat lon)))
+          (unless (string= shortened shortcode)
+            (olctest-record-failure case shortcode shortened))))
       )))
+
 
 (defun olctest-validity ()
   "Test validity."
-  (olctest-run-tests ("validityTests.csv" case)
+  (olctest-run-csv ("validityTests.csv" case)
     (let* ((code (alist-get 'code case))
            (expected (list (alist-get 'isValid case)
                            (alist-get 'isShort case)
@@ -163,12 +176,29 @@
       (unless (equal expected actual)
         (olctest-record-failure case expected actual)))))
 
+(defvar olctest-local-shorten-tests
+  '(((code . "9C3W9QCJ+2VX") (lat . 51.3701125) (lon . -1.217765625) (len . 8) (exp . "+2VX"))
+    ((code . "9C3W9QCJ+2VX") (lat . 51.3701125) (lon . -1.217765625) (len . 6) (exp . "CJ+2VX"))
+    ((code . "9C3W9QCJ+2VX") (lat . 51.3701125) (lon . -1.217765625) (len . 4) (exp . "9QCJ+2VX"))
+    ((code . "9C3W9QCJ+2VX") (lat . 51.3701125) (lon . -1.217765625) (len . 2) (exp . "3W9QCJ+2VX"))))
+
+(defun olctest-localtests ()
+  (olctest-run-list (olctest-local-shorten-tests case)
+    (let* ((fullcode (alist-get 'code case))
+           (lat (alist-get 'lat case))
+           (lon (alist-get 'lon case))
+           (len (alist-get 'len case))
+           (shortcode (alist-get 'exp case))
+           (actual (olc-shorten fullcode lat lon len)))
+      (unless (string= actual shortcode)
+        (olctest-record-failure case shortcode actual)))))
+
 
 (defun olctest-run-all ()
   "Run all tests."
   (and (olctest-decode)
        (olctest-encode)
        (olctest-shortcodes)
-       (olctest-validity)))
-
-
+       (olctest-validity)
+       (olctest-localtests)
+       ))
