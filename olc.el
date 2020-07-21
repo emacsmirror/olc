@@ -91,8 +91,7 @@
   (pairs nil :read-only t)
   (grid nil :read-only t)
   (short nil :read-only t)
-  (precision nil :read-only t)
-  (code nil :read-only t))
+  (precision nil :read-only t))
 
 (defsubst olc-parse-length (parse)
   "Get length from a parsed open location code PARSE."
@@ -224,23 +223,12 @@
       (olc-parse-create :pairs (nreverse pairs)
                         :grid (nreverse grid)
                         :short short
-                        :precision precision
-                        :code code))))
+                        :precision precision))))
 
 
 ;;; ========================================================================
 ;;; Public functions
 ;;; ========================================================================
-
-(defsubst olc-valid-digits (value)
-  "Return non-nil if VALUE consists of valid digits.
-
-VALUE can be a character or sequence of characters."
-  (condition-case nil
-      (if (characterp value)
-          (olc-digit-value char)
-        (mapc 'olc-digit-value char))
-    (error nil)))
 
 (defun olc-is-valid (code)
   "Return non-nil if CODE is a valid open location code."

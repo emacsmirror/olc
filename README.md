@@ -104,3 +104,14 @@ The OLC parse is a structure mainly used internally. Unless you call
   geographical reference to coordinates. Please make sure you follow
   the acceptable use policy for the API (e.g., one request per second,
   tops, allowed).
+
+`(olc-is-valid CODE)`
+: Returns non-nil if `CODE` is a valid open location code.
+
+`(olc-is-short CODE)`
+: Returns non-nil if `CODE` is a valid short location code. Returns
+  nil for valid short and for invalid codes.
+
+`(olc-is-full CODE)`
+: Returns non-nil if `CODE` is a valid full open location code.
+  Returns nil for valid long and for invalid codes.
