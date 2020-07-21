@@ -5,7 +5,7 @@
 ;; Author: David Byers <david.byers@liu.se>
 ;; Version: 1.0
 ;; Package-Requires: ((emacs "25.1"))
-;; Keywords: comm, extensions, tools
+;; Keywords: extensions, lisp
 ;; URL: https://gitlab.liu.se/davby02/olc
 ;;
 ;; This program is free software: you can redistribute it and/or
