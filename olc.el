@@ -1,38 +1,38 @@
-;;; olc.el --- Open location code library
-;;;
-;;; Copyright (C) 2020 David Byers
-;;;
-;;; Author: David Byers <david.byers@liu.se>
-;;; Version: 1.0
-;;; Package-Requires: ((emacs "25.1"))
-;;; Keywords: comm, extensions, tools
-;;; URL: https://gitlab.liu.se/davby02/olc
-;;;
-;;; This program is free software: you can redistribute it and/or
-;;; modify it under the terms of the GNU General Public License as
-;;; published by the Free Software Foundation, either version 3 of
-;;; the License, or (at your option) any later version.
-;;;
-;;; This program is distributed in the hope that it will be useful,
-;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-;;; General Public License for more details.
-;;;
-;;; You should have received a copy of the GNU General Public License
-;;; along with this program. If not, see
-;;; <https://www.gnu.org/licenses/>.
+;;; olc.el --- Open location code library -*-coding: utf-8;-*-
+
+;; Copyright (C) 2020 David Byers
+;;
+;; Author: David Byers <david.byers@liu.se>
+;; Version: 1.0
+;; Package-Requires: ((emacs "25.1"))
+;; Keywords: comm, extensions, tools
+;; URL: https://gitlab.liu.se/davby02/olc
+;;
+;; This program is free software: you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License as
+;; published by the Free Software Foundation, either version 3 of
+;; the License, or (at your option) any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+;; General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with this program. If not, see
+;; <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
-;;; This program provides basic open location code support in Emacs
-;;; Lisp. The support for recovering shortened codes depends on the
-;;; request library and uses OpenStreetMap; please check the terms of
-;;; use for the service to ensure that you remain compliant.
-;;;
-;;; All methods required by the open location code specification are
-;;; provided in some form. The implementation passed the tests present
-;;; in the open location code github repository at the time of writing
-;;; almost cleanly -- there are some minor rounding issues in decode.
+;; This program provides basic open location code support in Emacs
+;; Lisp. The support for recovering shortened codes depends on the
+;; request library and uses OpenStreetMap; please check the terms of
+;; use for the service to ensure that you remain compliant.
+;;
+;; All methods required by the open location code specification are
+;; provided in some form. The implementation passed the tests present
+;; in the open location code github repository at the time of writing
+;; almost cleanly -- there are some minor rounding issues in decode.
 
 ;;; Code:
 
@@ -45,19 +45,16 @@
 (require 'request nil t)
 
 
-;;; ==================================================================
-;;; Silence the compiler if request is not on load-path at compile
-;;; time
-;;; ==================================================================
+;; Silence compiler if request is not on load-path at compile time
+;; Unfortunately check-declare can't handle these.
 
 (declare-function request "request")
 (declare-function request-response-status-code "request")
 (declare-function request-response-data "request")
 
 
-;;; ==================================================================
-;;; Errors raised by this package
-;;; ==================================================================
+;;; Custom errors:
+
 
 (define-error 'olc-error "Error in open location code.")
 (define-error 'olc-parse-error
@@ -70,9 +67,8 @@
   "Error shortening open location code" 'olc-error)
 
 
-;;; ==================================================================
-;;; Mapping of digits to base 20 values
-;;; ==================================================================
+;;; Base 20 digits:
+
 
 (defvar olc-value-mapping "23456789CFGHJMPQRVWX"
   "Mapping from values to olc base 20 digits.")
@@ -95,9 +91,8 @@
   (elt olc-value-mapping value))
 
 
-;;; ==================================================================
-;;; Data structures
-;;; ==================================================================
+;;; Data structures:
+
 
 (cl-defstruct (olc-parse (:copier nil)
                          (:constructor olc-parse-create))
@@ -126,9 +121,8 @@
        180))
 
 
-;;; ==================================================================
-;;; (Mostly) internal functions
-;;; ==================================================================
+;;; (Mostly) internal functions:
+
 
 (defmacro olc-valid-char (char)
   "Check if CHAR is a valid OLC digit."
@@ -269,15 +263,15 @@ raise, and args for the raised error.
                         :precision precision))))
 
 
-;;; ==================================================================
-;;; Public functions
-;;; ==================================================================
+;;; Public functions:
+
 
 (defun olc-is-valid (code)
   "Return non-nil if CODE is a valid open location code."
   (condition-case nil
       (olc-parse-code code)
     (olc-parse-error nil)))
+
 
 (defun olc-is-short (code)
   "Return non-nil if CODE is a valid short open location code.
@@ -288,6 +282,7 @@ invalid."
       (olc-parse-short (olc-parse-code code))
     (olc-parse-error nil)))
 
+
 (defun olc-is-full (code)
   "Return non-nil if CODE is a valid long open location code.
 
@@ -297,59 +292,12 @@ invalid."
       (not (olc-parse-short (olc-parse-code code)))
     (olc-parse-error nil)))
 
+
 (defun olc-code-precision (code)
   "Return the precision of CODE."
   (condition-case nil
       (olc-parse-precision (olc-parse-code code))
     (olc-parse-error nil)))
-
-(defun olc-decode (code)
-  "Decode open location code CODE.
-
-Returns an `olc-area' structure. Raises `olc-parse-error' if the
-code can't be parsed, and `olc-decode-error' if it can't be
-decoded (e.g. a padded shortened code, a padded code with grid
-coordinates, an empty code, and so forth).
-
-Since this function uses floating point calculations, the results
-are not identical to e.g. the C++ reference implementation. The
-differences, however, are extremely small."
-  (let* ((parse (olc-parse-code code))
-         (latscale (* (expt 20 4) (expt 5 5)))
-         (lonscale (* (expt 20 4) (expt 4 5)))
-         (lat (* latscale -90))
-         (lon (* lonscale -180))
-         (latsize (* latscale 20))
-         (lonsize (* lonscale 20)))
-
-    ;; We only deal with long codes
-    (when (olc-parse-short parse)
-      (signal 'olc-decode-error code))
-
-    ;; Process the pairs
-    (mapc (lambda (pair)
-            (setq lat (+ lat (* latsize (olc-digit-value (car pair))))
-                  lon (+ lon (* lonsize (olc-digit-value (cdr pair))))
-                  latsize (/ latsize 20)
-                  lonsize (/ lonsize 20)))
-          (olc-parse-pairs parse))
-
-    ;; I'm too tired to figure out why
-    (setq latsize (* latsize 20) lonsize (* lonsize 20))
-
-    ;; Process the grid
-    (when (olc-parse-grid parse)
-      (mapc (lambda (refine)
-              (setq latsize (/ latsize 5) lonsize (/ lonsize 4))
-              (let ((coord (olc-digit-value refine)))
-                (setq lat (+ lat (* latsize (/ coord 4)))
-                      lon (+ lon (* lonsize (% coord 4))))))
-            (olc-parse-grid parse)))
-
-    (olc-area-create :latlo (/ lat (float latscale))
-                     :lonlo (/ lon (float lonscale))
-                     :lathi (/ (+ lat latsize) (float latscale))
-                     :lonhi (/ (+ lon lonsize) (float lonscale)))))
 
 
 (defun olc-encode (lat lon len)
@@ -404,6 +352,90 @@ values cannot (legally) be encoded to the selected length."
     (apply 'string code)))
 
 
+(defun olc-decode (code)
+  "Decode open location code CODE.
+
+Returns an `olc-area' structure. Raises `olc-parse-error' if the
+code can't be parsed, and `olc-decode-error' if it can't be
+decoded (e.g. a padded shortened code, a padded code with grid
+coordinates, an empty code, and so forth).
+
+Since this function uses floating point calculations, the results
+are not identical to e.g. the C++ reference implementation. The
+differences, however, are extremely small."
+  (let* ((parse (olc-parse-code code))
+         (latscale (* (expt 20 4) (expt 5 5)))
+         (lonscale (* (expt 20 4) (expt 4 5)))
+         (lat (* latscale -90))
+         (lon (* lonscale -180))
+         (latsize (* latscale 20))
+         (lonsize (* lonscale 20)))
+
+    ;; We only deal with long codes
+    (when (olc-parse-short parse)
+      (signal 'olc-decode-error code))
+
+    ;; Process the pairs
+    (mapc (lambda (pair)
+            (setq lat (+ lat (* latsize (olc-digit-value (car pair))))
+                  lon (+ lon (* lonsize (olc-digit-value (cdr pair))))
+                  latsize (/ latsize 20)
+                  lonsize (/ lonsize 20)))
+          (olc-parse-pairs parse))
+
+    ;; I'm too tired to figure out why
+    (setq latsize (* latsize 20) lonsize (* lonsize 20))
+
+    ;; Process the grid
+    (when (olc-parse-grid parse)
+      (mapc (lambda (refine)
+              (setq latsize (/ latsize 5) lonsize (/ lonsize 4))
+              (let ((coord (olc-digit-value refine)))
+                (setq lat (+ lat (* latsize (/ coord 4)))
+                      lon (+ lon (* lonsize (% coord 4))))))
+            (olc-parse-grid parse)))
+
+    (olc-area-create :latlo (/ lat (float latscale))
+                     :lonlo (/ lon (float lonscale))
+                     :lathi (/ (+ lat latsize) (float latscale))
+                     :lonhi (/ (+ lon lonsize) (float lonscale)))))
+
+
+(defun olc-shorten (code lat lon &optional limit)
+  "Attempt to shorten CODE with reference LAT and LON.
+
+Shorten CODE, which must be a full open location code, using
+latitude LAT and longitude LON as the reference. If LIMIT is
+specified, then the code will be shortened by at most that many
+digits. If the code can't be shortened, the original code is
+returned. `olc-shorten-error' is raised if CODE is a padded or
+shortened code, of if LIMIT is not positive and even."
+  (let* ((parse (olc-parse-code code))
+         (area (olc-decode parse)))
+    (when (null limit) (setq limit 12))
+    (unless (and (> limit 0) (= 0 (% limit 2)))
+      (signal 'olc-shorten-error
+              (list "limit must be even and positive" code)))
+    (when (olc-is-short parse)
+      (signal 'olc-shorten-error
+              (list "can't shorten shortened codes" code)))
+    (when (< (olc-parse-precision parse) 8)
+      (signal 'olc-shorten-error
+              (list "can't shorten padded codes" code)))
+
+    (setq lat (olc-clip-latitude lat)
+          lon (olc-normalize-longitude lon))
+
+    (let ((coderange (max (abs (- (olc-area-lat area) lat))
+                          (abs (- (olc-area-lon area) lon)))))
+      (catch 'break
+        (dolist (spec '((4 . 0.0025) (3 . 0.05) (2 . 1) (1 . 20)))
+          (when (< coderange (* (cdr spec) 0.3))
+            (throw 'break (substring code
+                                     (min limit (* (car spec) 2))))))
+        code))))
+
+
 (defun olc-recover (code lat lon &optional format)
   "Recover shortened code CODE from coordinates LAT and LON.
 
@@ -441,41 +473,6 @@ full open location code."
         (if (eq format 'latlon)
             (cons lat lon)
           (olc-encode lat lon (olc-parse-precision parse)))))))
-
-
-(defun olc-shorten (code lat lon &optional limit)
-  "Attempt to shorten CODE with reference LAT and LON.
-
-Shorten CODE, which must be a full open location code, using
-latitude LAT and longitude LON as the reference. If LIMIT is
-specified, then the code will be shortened by at most that many
-digits. If the code can't be shortened, the original code is
-returned. `olc-shorten-error' is raised if CODE is a padded or
-shortened code, of if LIMIT is not positive and even."
-  (let* ((parse (olc-parse-code code))
-         (area (olc-decode parse)))
-    (when (null limit) (setq limit 12))
-    (unless (and (> limit 0) (= 0 (% limit 2)))
-      (signal 'olc-shorten-error
-              (list "limit must be even and positive" code)))
-    (when (olc-is-short parse)
-      (signal 'olc-shorten-error
-              (list "can't shorten shortened codes" code)))
-    (when (< (olc-parse-precision parse) 8)
-      (signal 'olc-shorten-error
-              (list "can't shorten padded codes" code)))
-
-    (setq lat (olc-clip-latitude lat)
-          lon (olc-normalize-longitude lon))
-
-    (let ((coderange (max (abs (- (olc-area-lat area) lat))
-                          (abs (- (olc-area-lon area) lon)))))
-      (catch 'break
-        (dolist (spec '((4 . 0.0025) (3 . 0.05) (2 . 1) (1 . 20)))
-          (when (< coderange (* (cdr spec) 0.3))
-            (throw 'break (substring code
-                                     (min limit (* (car spec) 2))))))
-        code))))
 
 
 (defun olc-recover-string (arg1 &optional arg2 arg3)
@@ -521,5 +518,4 @@ format of the return value (see `olc-recover' for details)."
 
 (provide 'olc)
 
-;;; -*-coding: utf-8;-*-
 ;;; olc.el ends here

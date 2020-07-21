@@ -2,7 +2,8 @@
 
 	Clean up
 	* olc.el: Declare external functions for the byte compiler. Fix
-	whitespace. Shortened lines. Fixed some docstrings. 
+	whitespace. Shortened lines. Fixed some docstrings. Cleaned up
+	comments. Removed DOS line endings. Moved functions around.
 
 	More integer math:
 	(olc-decode): Converted to use integer math.
