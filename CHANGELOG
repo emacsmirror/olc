@@ -1,5 +1,8 @@
 2020-07-21  David Byers  <david.byers@liu.se>
 
+	More integer math:
+	(olc-decode): Converted to use integer math.
+
 	Wrote texinfo documentation:
 	* olc.el (olc-parse-length): Removed.
 	Updated documentation comment.

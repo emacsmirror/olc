@@ -18,8 +18,9 @@
 
 (require 'cl-lib)
 
-;; Decode still uses float arithmetic, so results can be slightly off
-;; from the test cases. This is deemed acceptable.
+;; Due to rounding and floating point representation we can't seem
+;; to get closer than 1e-10 to the reference test cases, but sinze
+;; it only affects decoding, that is an insignificant error level.
 
 (defvar olctest-decode-tolerance 0.0000000001)
 
@@ -196,7 +197,7 @@
 
 (defun olctest-run-all ()
   "Run all tests."
-  (and (olctest-decode)
+  (and (olctest-decode)q
        (olctest-encode)
        (olctest-shortcodes)
        (olctest-validity)

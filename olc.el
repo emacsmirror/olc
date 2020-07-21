@@ -264,10 +264,13 @@ coordinates, an empty code, and so forth).
 Since this function uses floating point calculations, the results
 are not identical to e.g. the C++ reference implementation. The
 differences, however, are extremely small."
-  (let ((parse (olc-parse-code code))
-	(lat -90.0)
-	(lon -180.0)
-	(size 20.0))
+  (let* ((parse (olc-parse-code code))
+         (latscale (* (expt 20 4) (expt 5 5)))
+         (lonscale (* (expt 20 4) (expt 4 5)))
+         (lat (* latscale -90))
+         (lon (* lonscale -180))
+         (latsize (* latscale 20))
+         (lonsize (* lonscale 20)))
 
     ;; We only deal with long codes
     (when (olc-parse-short parse)
@@ -275,22 +278,28 @@ differences, however, are extremely small."
 
     ;; Process the pairs
     (mapc (lambda (pair)
-	    (setq lat (+ lat (* size (olc-digit-value (car pair))))
-		  lon (+ lon (* size (olc-digit-value (cdr pair))))
-		  width size
-		  height size
-		  size (/ size 20.0)))
+	    (setq lat (+ lat (* latsize (olc-digit-value (car pair))))
+		  lon (+ lon (* lonsize (olc-digit-value (cdr pair))))
+		  latsize (/ latsize 20)
+                  lonsize (/ lonsize 20)))
 	  (olc-parse-pairs parse))
+
+    ;; I'm too tired to figure out why
+    (setq latsize (* latsize 20) lonsize (* lonsize 20))
 
     ;; Process the grid
     (when (olc-parse-grid parse)
       (mapc (lambda (refine)
-	      (setq width (/ width 4.0) height (/ height 5.0))
+	      (setq latsize (/ latsize 5) lonsize (/ lonsize 4))
 	      (let ((coord (olc-digit-value refine)))
-		(setq lat (+ lat (* height (/ coord 4)))
-		      lon (+ lon (* width (% coord 4))))))
+		(setq lat (+ lat (* latsize (/ coord 4)))
+		      lon (+ lon (* lonsize (% coord 4))))))
 	    (olc-parse-grid parse)))
-    (olc-area-create :latlo lat :lonlo lon :lathi (+ lat height) :lonhi (+ lon width))))
+
+    (olc-area-create :latlo (/ lat (float latscale))
+                     :lonlo (/ lon (float lonscale))
+                     :lathi (/ (+ lat latsize) (float latscale))
+                     :lonhi (/ (+ lon lonsize) (float lonscale)))))
 
 
 (defun olc-encode (lat lon len)
