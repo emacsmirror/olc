@@ -1,5 +1,9 @@
 2020-07-21  David Byers  <david.byers@liu.se>
 
+	Clean up
+	* olc.el: Declare external functions for the byte compiler. Fix
+	whitespace. Shortened lines. Fixed some docstrings. 
+
 	More integer math:
 	(olc-decode): Converted to use integer math.
 

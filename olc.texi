@@ -140,10 +140,10 @@ is otherwise invalid (i.e. 3, 5, 7, or 9).
 
 @defun olc-decode code
 Decode @var{code} and return an @code{olc-area} representing the
-location. Raises @code{olc-parse-error} if the code can't be parsed,
-and @code{olc-decode-error} if it can't be decoded (e.g. a padded
-shortened code, a padded code with grid coordinates, an empty code,
-and so forth). Returns an olc-area structure.
+location. Returns an olc-area structure. Raises @code{olc-parse-error}
+if the code can't be parsed, and @code{olc-decode-error} if it can't
+be decoded (e.g. a padded shortened code, a padded code with grid
+coordinates, an empty code, and so forth).
 
 @example
 @group
