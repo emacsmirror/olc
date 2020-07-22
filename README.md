@@ -64,6 +64,6 @@ Recovery using a geographical reference (requires `requests` and uses
 the OpenStreetMap API):
 
 ````
-(olc-recover-string "M24Q+89 Mutitjulu")
+(olc-recover-compound "M24Q+89 Mutitjulu")
 "5Q6HM24Q+89"
 ````

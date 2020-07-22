@@ -1,5 +1,10 @@
 2020-07-22  David Byers  <david.byers@liu.se>
 
+	Rename some functions:
+	* olc.el (olc-shorten-compound): Renamed from olc-shorten-geo to
+	better match Google's terminology in their plus codes api.
+	(olc-recover-compound): Same.
+
 	Implement olc-shorten-geo and clean up:
 	* olc.el (olc-shorten-geo): New function.
 	(olc-encode): Use cl-defun and keyword args.

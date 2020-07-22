@@ -1,4 +1,6 @@
-;;; olc.el --- Open location code library -*-coding: utf-8;-*-
+;;  -*-coding: utf-8;-*-
+
+;;; olc.el --- Open location code library
 
 ;; Copyright (C) 2020 David Byers
 ;;
@@ -434,7 +436,7 @@ shortened code, of if LIMIT is not positive and even."
         code))))
 
 
-(cl-defun olc-shorten-geo (code &key (limit 4) (zoom '(1 18)))
+(cl-defun olc-shorten-compound (code &key (limit 4) (zoom '(1 18)))
   "Attempt to shorten CODE with a geographic reference.
 
 Shorten CODE, which must be a full open location code, finding a
@@ -545,7 +547,7 @@ full open location code."
           (olc-encode lat lon :len (olc-parse-precision parse)))))))
 
 
-(cl-defun olc-recover-geo (arg1 &optional arg2 &key (format 'area))
+(cl-defun olc-recover-compound (arg1 &optional arg2 &key (format 'area))
   "Recover a location from a short code and reference.
 
 When called with one argument, ARG1, it must be a string

@@ -177,7 +177,7 @@ or shortened code, of if @var{limit} is not even.
 @end example
 @end defun
 
-@defun olc-shorten-geo code &key limit
+@defun olc-shorten-compound code &key limit
 Shorten @var{code}, which must be a full open location code, finding a
 reference near the encoded location. If @var{limit} is non-nil, then
 the code will be shortened by at most that many digits. If the code
@@ -194,13 +194,13 @@ shortened code, of if @var{limit} is not even.
 
 @example
 @group
-(olc-shorten-geo "5Q6HM24Q+89")
+(olc-shorten-compound "5Q6HM24Q+89")
 @result{} "M24Q+89 Mutitjulu, Northern Territory, Australia"
-(olc-shorten-geo "5Q6HM24Q+89" :limit 2)
+(olc-shorten-compound "5Q6HM24Q+89" :limit 2)
 @result{} "6HM24Q+89 Northern Territory, Australia"
-(olc-shorten-geo "5Q6HM24Q+89" :zoom 14)
+(olc-shorten-compound "5Q6HM24Q+89" :zoom 14)
 @result{} "M24Q+89 Mutitjulu, Northern Territory, Australia"
-(olc-shorten-geo "5Q6HM24Q+89" :zoom 1)
+(olc-shorten-compound "5Q6HM24Q+89" :zoom 1)
 "6HM24Q+89 Australia"
 @end group
 @end example
@@ -223,7 +223,7 @@ value), the returned value is an full open location code.
 @end example
 @end defun
 
-@defun olc-recover-geo arg1 &optional arg2 &key format
+@defun olc-recover-compound arg1 &optional arg2 &key format
 Recover a shortened code @i{without} the reference latitude and
 longitude.
 
@@ -240,11 +240,11 @@ details).
 
 @example
 @group
-(olc-recover-geo "M24Q+89 Mutitjulu")
+(olc-recover-compound "M24Q+89 Mutitjulu")
 @result{} "5Q6HM24Q+89"
-(olc-recover-geo "M24Q+89" "Mutitjulu")
+(olc-recover-compound "M24Q+89" "Mutitjulu")
 @result{} "5Q6HM24Q+89"
-(olc-recover-geo "M24Q+89" "Mutitjulu" :format 'latlon)
+(olc-recover-compound "M24Q+89" "Mutitjulu" :format 'latlon)
 @result{} (-25.344187500000004 . 131.0384375)
 @end group
 @end example
