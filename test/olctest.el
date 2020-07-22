@@ -23,6 +23,7 @@
 ;; it only affects decoding, that is an insignificant error level.
 
 (defvar olctest-decode-tolerance 0.0000000001)
+(defvar $olctest-results)
 
 (defun olctest-read-csv (filename)
   "Read a CSV file with test data."
@@ -30,9 +31,10 @@
     (unwind-protect
         (save-window-excursion
           (set-buffer buffer)
-          (insert-file filename)
+          (insert-file-contents filename)
           (goto-char (point-min))
-          (save-excursion (replace-string "full code" "fullcode"))
+          (save-excursion (while (re-search-forward "full code" nil t)
+                            (replace-match "fullcode" nil t)))
           (unless (re-search-forward "^# Format.*:$" nil t)
             (error "format line not found in test data"))
           (forward-line 1)
@@ -203,3 +205,10 @@
        (olctest-validity)
        (olctest-localtests)
        ))
+
+(defun olctest-batch-test ()
+  (kill-emacs
+   (if (condition-case err
+           (olctest-run-all)
+         (error (message (format "error: %s %s" (car err) (cdr err))) nil))
+       0 1)))

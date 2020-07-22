@@ -1,0 +1,278 @@
+This is olc.info, produced by makeinfo version 6.7 from olc.texi.
+
+
+File: olc.info,  Node: Top,  Next: Data types,  Up: (dir)
+
+Introduction
+************
+
+Open Location Code is a way to encode locations in a format that is
+easier for people (not computers) to use than latitude and longitude.
+
+   For example, the code 9FCQ9HXG+4C refers to the location 58°23’52.1"N
+15°34’33.8"E (58.397813, 15.576063).
+
+   Codes can be shortened by removing characters from the beginning
+andding a reference location: 9HXG+4C with the reference "Linköping"
+would refer to the same set of coordinates.
+
+   For details about open location code and implementations in other
+languages, see https://github.com/google/open-location-code.
+
+* Menu:
+
+* Data types::  Data types defined by olc.
+* Functions::   Functions defined by olc.
+* Index::       Type and function index.
+
+
+File: olc.info,  Node: Data types,  Next: Functions,  Prev: Top,  Up: Top
+
+Data types
+**********
+
+olc defines two data types: olc-area and olc-parse.  The former
+represents the result of decoding a code and the latter is the result of
+parsing a code, and is mostly for internal use.
+
+* Menu:
+
+* olc-area::      The olc-area data type.
+* olc-parse::     The olc-parse data type.
+
+
+File: olc.info,  Node: olc-area,  Next: olc-parse,  Up: Data types
+
+olc-area
+========
+
+An olc-area is the area represented by an open location code.  All
+fields are read-only once the object has been created.
+
+ -- Function: olc-area-create &key latlo lonlo lathi lonhi
+     Creates an olc-area with southwest corner (LATLO,LONLO) and
+     northeast corner (LATHI,LONHI).
+
+ -- Function: olc-area-p obj
+     Return non-‘nil’ if OBJ is an olc-area.
+
+ -- Function: olc-area-latlo area
+     Return the southern latitude of AREA.
+
+ -- Function: olc-area-lonlo area
+     Return the eastern longitude of AREA.
+
+ -- Function: olc-area-lathi area
+     Return the northern latitude of AREA.
+
+ -- Function: olc-area-lonhi area
+     Return the western longitude of AREA.
+
+ -- Function: olc-area-lat area
+     Return the latitude of the center of AREA.
+
+ -- Function: olc-area-lon area
+     Return the longitude of the center of AREA.
+
+
+File: olc.info,  Node: olc-parse,  Prev: olc-area,  Up: Data types
+
+olc-parse
+=========
+
+The olc-parse is a structure mainly used internally.  Unless you call
+‘olc-parse-code’ you will probably never see one.
+
+ -- Function: olc-parse-create &key pairs grid short prec code
+     Create an olc-parse structure.  Don’t call this: use
+     ‘olc-parse-code’ instead.
+
+ -- Function: olc-parse-pairs parse
+     Returns the list of parsed pairs in PARSE.  Pairs are first ten
+     digits of a full code (five pairs).  For padded and shortened
+     codes, the list of pairs could be shorter.
+
+ -- Function: olc-parse-grid parse
+     Returns the list of parsed grid digits in PARSE.  Grid digits are
+     all (up to five) the digits that follow the last pair.
+
+ -- Function: olc-parse-short parse
+     Return non-‘nil’ if PARSE represents a shortened code.
+
+ -- Function: olc-parse-precision parse
+     Return the precision in digits of the parsed code in PARSE.  A full
+     code without padding will have precision 8, 10, or more.  Full
+     codes with padding have precision 6 or lower.  Shortened codes
+     should have at least a precision of 8 since padded codes can’t be
+     shortened, but don’t count on this.
+
+
+File: olc.info,  Node: Functions,  Prev: Data types,  Up: Top
+
+Functions
+=========
+
+ -- Function: olc-encode lat lon &key length
+     Encode a latitude LAT, longitude LON, into an open location code of
+     length LEN.  The length is automatically clipped to between 2 and
+     15.  (‘olc-encode-error’ is raised if the length is otherwise
+     invalid (i.e.  3, 5, 7, or 9).
+
+          (olc-encode 58.397813 15.576063)
+          ⇒ "9FCQ9HXG+4C"
+          (olc-encode 58.397813 15.576063 :len 11)
+          ⇒ "9FCQ9HXG+4CG"
+          (olc-encode 58.397813 15.576063 :len 8)
+          ⇒ "9FCQ9HXG+"
+          (olc-encode 58.397813 15.576063 :len 4)
+          ⇒ "9FCQ0000+"
+
+ -- Function: olc-decode code
+     Decode CODE and return an ‘olc-area’ representing the location.
+     Returns an olc-area structure.  Raises ‘olc-parse-error’ if the
+     code can’t be parsed, and ‘olc-decode-error’ if it can’t be decoded
+     (e.g.  a padded shortened code, a padded code with grid
+     coordinates, an empty code, and so forth).
+
+          (olc-decode "9FCQ9HXG+4CG")
+          ⇒ #s(olc-area 58.397800000000004 15.5760625 58.397825000000005 15.57609375)
+          (olc-area-lat (olc-decode "9FCQ9HXG+4CG"))
+          ⇒ 58.3978125
+          (olc-area-lon (olc-decode "9FCQ9HXG+4CG"))
+          ⇒ 15.576078125
+
+ -- Function: olc-shorten code lat lon &key limit
+     Shorten CODE, which must be a full open location code, using
+     latitude LAT and longitude LON as the reference.  If LIMIT is
+     specified, then the code will be shortened by at most that many
+     digits.  If the code can’t be shortened, the original code is
+     returned.  ‘olc-shorten-error’ is raised if CODE is a padded or
+     shortened code, of if LIMIT is not even.
+
+          (olc-shorten "9C3W9QCJ+2VX" 51.3701125 -1.217765625)
+          ⇒ "+2VX"
+          (olc-shorten "9C3W9QCJ+2VX" 51.3701125 -1.217765625 :limit 4)
+          ⇒ "9QCJ+2VX"
+
+ -- Function: olc-shorten-compound code &key limit
+     Shorten CODE, which must be a full open location code, finding a
+     reference near the encoded location.  If LIMIT is non-nil, then the
+     code will be shortened by at most that many digits.  If the code
+     can’t be shortened, the original code is returned.
+
+     If ZOOM is non-nil, then limit references to that zoom level.  The
+     default is 8 and the maximum is 18.  Higher zoom levels yield more
+     precise but longer references.  Lower zoom levels yield simpler
+     references but longer codes.  The default seems to usually produce
+     codes with four characters before the plus sign.
+
+     ‘olc-shorten-error’ is raised if CODE is a padded or shortened
+     code, of if LIMIT is not even.
+
+          (olc-shorten-compound "5Q6HM24Q+89")
+          ⇒ "M24Q+89 Mutitjulu, Northern Territory, Australia"
+          (olc-shorten-compound "5Q6HM24Q+89" :limit 2)
+          ⇒ "6HM24Q+89 Northern Territory, Australia"
+          (olc-shorten-compound "5Q6HM24Q+89" :zoom 14)
+          ⇒ "M24Q+89 Mutitjulu, Northern Territory, Australia"
+          (olc-shorten-compound "5Q6HM24Q+89" :zoom 1)
+          "6HM24Q+89 Australia"
+
+ -- Function: olc-recover code lat lon &key format
+     Recover the closest point to coordinates LAT and LON with a code
+     that can be shortened to CODE.  If FORMAT is ‘latlon’, then the
+     center of the recovered area (LATITUDE .  LONGITUDE) is returned.
+     If FORMAT is ‘area’ (or any other value), the returned value is an
+     full open location code.
+
+          (olc-recover "+2VX" 51.3701125 -1.217765625)
+          ⇒ "9C3W9QCJ+2VX"
+          (olc-recover "+2VX" 51.3701125 -1.217765625 :format 'latlon)
+          ⇒ (51.370112500000005 . -1.2177656250000002)
+
+ -- Function: olc-recover-compound arg1 &optional arg2 &key format
+     Recover a shortened code without the reference latitude and
+     longitude.
+
+     When called with one argument, it must be a string consisting of a
+     shortened open location code followed by whitespace and a
+     geographical location.
+
+     When called with two strings, the first must be a shortened open
+     location code and the second if the geographical location.
+
+     Optionally, the last argument in either case can be a symbol
+     indicating the format of the return value (see ‘olc-recover’ for
+     details).
+
+          (olc-recover-compound "M24Q+89 Mutitjulu")
+          ⇒ "5Q6HM24Q+89"
+          (olc-recover-compound "M24Q+89" "Mutitjulu")
+          ⇒ "5Q6HM24Q+89"
+          (olc-recover-compound "M24Q+89" "Mutitjulu" :format 'latlon)
+          ⇒ (-25.344187500000004 . 131.0384375)
+
+     This function requires the ‘request’ package to be installed, and
+     uses the OpenStreetMap API to convert the geographical reference to
+     coordinates.  Please make sure you follow the acceptable use policy
+     for the API (e.g., one request per second, tops, allowed).
+
+ -- Function: olc-is-valid code
+     Returns non-‘nil’ if CODE is a valid open location code.
+
+ -- Function: olc-is-short code
+     Returns non-‘nil’ if CODE is a valid short location code.  Returns
+     ‘nil’ for valid short and for invalid codes.
+
+ -- Function: olc-is-full code
+     Returns non-‘nil’ if CODE is a valid full open location code.
+     Returns ‘nil’ for valid long and for invalid codes.
+
+
+File: olc.info,  Node: Index,  Prev: Functions,  Up: Top
+
+Index
+*****
+
+ [index ]
+* Menu:
+
+* olc-area-create:                       olc-area.            (line   9)
+* olc-area-lat:                          olc-area.            (line  28)
+* olc-area-lathi:                        olc-area.            (line  22)
+* olc-area-latlo:                        olc-area.            (line  16)
+* olc-area-lon:                          olc-area.            (line  31)
+* olc-area-lonhi:                        olc-area.            (line  25)
+* olc-area-lonlo:                        olc-area.            (line  19)
+* olc-area-p:                            olc-area.            (line  13)
+* olc-decode:                            Functions.           (line  21)
+* olc-encode:                            Functions.           (line   6)
+* olc-is-full:                           Functions.           (line 118)
+* olc-is-short:                          Functions.           (line 114)
+* olc-is-valid:                          Functions.           (line 111)
+* olc-parse-create:                      olc-parse.           (line   9)
+* olc-parse-grid:                        olc-parse.           (line  18)
+* olc-parse-pairs:                       olc-parse.           (line  13)
+* olc-parse-precision:                   olc-parse.           (line  25)
+* olc-parse-short:                       olc-parse.           (line  22)
+* olc-recover:                           Functions.           (line  72)
+* olc-recover-compound:                  Functions.           (line  84)
+* olc-shorten:                           Functions.           (line  35)
+* olc-shorten-compound:                  Functions.           (line  48)
+
+
+
+Tag Table:
+Node: Top67
+Node: Data types861
+Node: olc-area1242
+Node: olc-parse2170
+Node: Functions3400
+Node: Index8754
+
+End Tag Table
+
+
+Local Variables:
+coding: utf-8
+End:

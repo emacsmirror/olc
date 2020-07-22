@@ -325,7 +325,7 @@ values cannot (legally) be encoded to the selected length."
 
     ;; Calculate the grid part if needed
     (if (> len 10)
-        (dotimes (i 5)
+        (dotimes (_ 5)
           (setq code (cons (olc-value-digit
                             (+ (* (% lat 5) 4) (% lon 4)))
                            code)

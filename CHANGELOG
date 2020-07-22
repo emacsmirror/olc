@@ -1,11 +1,17 @@
 2020-07-22  David Byers  <david.byers@liu.se>
 
 	Fix test cases:
-	* test/olctest.el: Use keyword args in test cases.
+	* test/olctest.el: Use keyword args in test cases. Replace
+	interactive-only functions with better ones. Implement testing for
+	batch mode.
 
 	Clean up for melpa:
-	* olc.el: Use #' instead of ' in a few places. Enable lexical
-	binding.
+	* olc.el (olc-encode): Use #' instead of ' in apply. Enable
+	lexical binding. Rename unused loop variable so it is ignored by
+	the byte compiler.
+	* olc.el (olc-shorten-compound): Use #' instead of ' in request.
+	* olc.el (olc-recover-compound): Use #' instead of ' in request.
+	* Makefile: New file.
 
 	Rename some functions:
 	* olc.el (olc-shorten-compound): Renamed from olc-shorten-geo to
