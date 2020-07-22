@@ -1,4 +1,4 @@
-;;;; -*-coding: utf-8;-*-
+;;;; -*-coding: utf-8; lexical-binding: t;-*-
 ;;;;
 ;;;; Copyright (C) 2020 David Byers
 ;;;;
@@ -112,7 +112,7 @@
   (olctest-run-csv ("encoding.csv" case)
     (let ((code (olc-encode (alist-get 'latitude case)
                             (alist-get 'longitude case)
-                            (alist-get 'length case))))
+                            :len (alist-get 'length case))))
       (unless (string= code (alist-get 'expected case))
         (olctest-record-failure case (alist-get 'expected case) code)))))
 
@@ -190,14 +190,14 @@
            (lon (alist-get 'lon case))
            (len (alist-get 'len case))
            (shortcode (alist-get 'exp case))
-           (actual (olc-shorten fullcode lat lon len)))
+           (actual (olc-shorten fullcode lat lon :limit len)))
       (unless (string= actual shortcode)
         (olctest-record-failure case shortcode actual)))))
 
 
 (defun olctest-run-all ()
   "Run all tests."
-  (and (olctest-decode)q
+  (and (olctest-decode)
        (olctest-encode)
        (olctest-shortcodes)
        (olctest-validity)

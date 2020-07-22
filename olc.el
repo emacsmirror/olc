@@ -1,6 +1,4 @@
-;;  -*-coding: utf-8;-*-
-
-;;; olc.el --- Open location code library
+;;; olc.el --- Open location code library -*-lexical-binding: t;-*-
 
 ;; Copyright (C) 2020 David Byers
 ;;
@@ -350,7 +348,7 @@ values cannot (legally) be encoded to the selected length."
               (nconc (make-list (max 0 (- 8 len)) ?0)
                      (when truncate (list ?+)))))
 
-    (apply 'string code)))
+    (apply #'string code)))
 
 
 (defun olc-decode (code)
@@ -476,7 +474,7 @@ faster.
                                   (lon . ,(olc-area-lon area))
                                   (zoom . ,zoom)
                                   (format . "json"))
-                        :parser 'json-read
+                        :parser #'json-read
                         :sync t)))
                (tmp-code
                 (when resp
@@ -576,7 +574,7 @@ full open location code."
                   :params `((q . ,reference)
                             (format . "json")
                             (limit . 1))
-                  :parser 'json-read
+                  :parser #'json-read
                   :sync t)))
       (when (eq 200 (request-response-status-code resp))
         (let ((data (elt (request-response-data resp) 0)))

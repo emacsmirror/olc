@@ -1,5 +1,12 @@
 2020-07-22  David Byers  <david.byers@liu.se>
 
+	Fix test cases:
+	* test/olctest.el: Use keyword args in test cases.
+
+	Clean up for melpa:
+	* olc.el: Use #' instead of ' in a few places. Enable lexical
+	binding.
+
 	Rename some functions:
 	* olc.el (olc-shorten-compound): Renamed from olc-shorten-geo to
 	better match Google's terminology in their plus codes api.
