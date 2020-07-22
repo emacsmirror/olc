@@ -1,3 +1,15 @@
+2020-07-22  David Byers  <david.byers@liu.se>
+
+	Implement olc-shorten-geo and clean up:
+	* olc.el (olc-shorten-geo): New function.
+	(olc-encode): Use cl-defun and keyword args.
+	(olc-shorten): Use cl-defun and keyword args.
+	(olc-recover): Use cl-defun and keyword args.
+	(olc-recover-geo): Use cl-defun and keyword args. Renamed from
+	olc-recover-string.
+
+	* olc.texi (Functions): Updated to match code changes.
+
 2020-07-21  David Byers  <david.byers@liu.se>
 
 	Clean up

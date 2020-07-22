@@ -43,7 +43,7 @@
 
 (require 'cl-lib)
 (require 'request nil t)
-
+(require 'json nil t)
 
 ;; Silence compiler if request is not on load-path at compile time
 ;; Unfortunately check-declare can't handle these.
@@ -121,7 +121,7 @@
        180))
 
 
-;;; (Mostly) internal functions:
+;;; (Mostly) internal functions and variables
 
 
 (defmacro olc-valid-char (char)
@@ -150,7 +150,6 @@ raise, and args for the raised error.
   (when (= lat 90.0)
     (setq lat (- lat (/ (olc-latitude-precision len) 2.0))))
   lat)
-
 
 (defsubst olc-normalize-longitude (lon)
   "Normalize longitude LON."
@@ -300,12 +299,12 @@ invalid."
     (olc-parse-error nil)))
 
 
-(defun olc-encode (lat lon len)
+(cl-defun olc-encode (lat lon &key (len 10))
   "Encode LAT and LON as a LEN length open location code.
 
-The length is automatically clipped to between 2 and
-15. `olc-encode-error' is raised if the length is otherwise
-invalid (i.e. 3, 5, 7, or 9).
+LEN is automatically clipped to between 2 and 15.
+`olc-encode-error' is raised if it is otherwise invalid (i.e. 3,
+5, 7, or 9). If LEN is not specified, it defaults to 10.
 
 Returns an olc-area structure. Raises olc-encode-error if the
 values cannot (legally) be encoded to the selected length."
@@ -401,7 +400,7 @@ differences, however, are extremely small."
                      :lonhi (/ (+ lon lonsize) (float lonscale)))))
 
 
-(defun olc-shorten (code lat lon &optional limit)
+(cl-defun olc-shorten (code lat lon &key (limit 12))
   "Attempt to shorten CODE with reference LAT and LON.
 
 Shorten CODE, which must be a full open location code, using
@@ -412,7 +411,6 @@ returned. `olc-shorten-error' is raised if CODE is a padded or
 shortened code, of if LIMIT is not positive and even."
   (let* ((parse (olc-parse-code code))
          (area (olc-decode parse)))
-    (when (null limit) (setq limit 12))
     (unless (and (> limit 0) (= 0 (% limit 2)))
       (signal 'olc-shorten-error
               (list "limit must be even and positive" code)))
@@ -436,12 +434,84 @@ shortened code, of if LIMIT is not positive and even."
         code))))
 
 
-(defun olc-recover (code lat lon &optional format)
+(cl-defun olc-shorten-geo (code &key (limit 4) (zoom '(1 18)))
+  "Attempt to shorten CODE with a geographic reference.
+
+Shorten CODE, which must be a full open location code, finding a
+reference near the encoded location.
+
+If LIMIT is non-nil, then the code will be shortened by at most
+that many digits. The default is to shorten by at most 4
+characters.
+
+If ZOOM is non-nil it is either a number, the one zoom level to
+explore, or a list (MIN, MAX), where MIN is smallest zoom level
+to explore, and MAX the largest.
+
+If the code can't be shortened, the original code is returned.
+`olc-shorten-error' is raised if CODE is a padded or shortened
+code, of if LIMIT is not positive and even.
+
+This function makes multiple calls to the OpenStreetMap API, so
+it can take some time to complete. If you can set the zoom level
+to a single number, then it will make one call only, and is much
+faster.
+"
+  (let* ((area (olc-decode code))
+         (zoom-lo (cond ((numberp zoom) zoom)
+                        ((listp zoom) (elt zoom 0))
+                        (t (signal 'args-out-of-range zoom))))
+         (zoom-hi (cond ((numberp zoom) (1+ zoom))
+                        ((listp zoom) (1+ (elt zoom 1)))
+                        (t (signal 'args-out-of-range zoom))))
+         result)
+    (catch 'result
+      (while (< zoom-lo zoom-hi)
+        (let* ((zoom (floor (+ zoom-lo zoom-hi) 2))
+               (resp (request-response-data
+                      (request "https://nominatim.openstreetmap.org/reverse"
+                        :params `((lat . ,(olc-area-lat area))
+                                  (lon . ,(olc-area-lon area))
+                                  (zoom . ,zoom)
+                                  (format . "json"))
+                        :parser 'json-read
+                        :sync t)))
+               (tmp-code
+                (when resp
+                  (olc-shorten code
+                               (string-to-number
+                                (alist-get 'lat resp))
+                               (string-to-number
+                                (alist-get 'lon resp))
+                               :limit limit)))
+               (padlen (when (string-match "+" tmp-code)
+                         (- 8 (match-beginning 0)))))
+
+          ;; Keep the shortest code we see that has at most limit
+          ;; chars removed
+          (when (and (<= padlen limit)
+                     (or (null result)
+                         (< (length tmp-code) (length (car result)))))
+            (setq result (cons tmp-code
+                               (alist-get 'display_name resp))))
+
+          ;; Zoom in or out
+          (if (< padlen limit)
+              (setq zoom-lo (1+ zoom))
+            (setq zoom-hi zoom))))
+      (if (and result (> 8 (progn (string-match "+" (car result))
+                                  (match-end 0))))
+          (concat (car result) " " (cdr result))
+        code))))
+
+
+(cl-defun olc-recover (code lat lon &key (format 'area))
   "Recover shortened code CODE from coordinates LAT and LON.
 
 Recovers the closest point to coordinates LAT and LON with a code
 that can be shortened to CODE. If FORMAT is `latlon', then the
 center of the recovered area (LATITUDE . LONGITUDE) is returned.
+
 If FORMAT is `area' (or any other value), the returned value is an
 full open location code."
   (let ((parse (olc-parse-code code)))
@@ -455,7 +525,7 @@ full open location code."
              (resolution (expt 20 (- 2 (/ padlen 2))))
              (half-resolution (/ resolution 2.0))
              (area (olc-decode
-                    (concat (substring (olc-encode lat lon 10)
+                    (concat (substring (olc-encode lat lon :len 10)
                                        0 padlen)
                             code))))
         (cond ((and (< (+ lat half-resolution) (olc-area-lat area))
@@ -472,10 +542,10 @@ full open location code."
               (t (setq lon (olc-area-lon area))))
         (if (eq format 'latlon)
             (cons lat lon)
-          (olc-encode lat lon (olc-parse-precision parse)))))))
+          (olc-encode lat lon :len (olc-parse-precision parse)))))))
 
 
-(defun olc-recover-string (arg1 &optional arg2 arg3)
+(cl-defun olc-recover-geo (arg1 &optional arg2 &key (format 'area))
   "Recover a location from a short code and reference.
 
 When called with one argument, ARG1, it must be a string
@@ -486,21 +556,19 @@ When called with two strings, ARG1 and ARG2, the first must be a
 shortened open location code and the second if the geographical
 location.
 
-Optionally, the last argument (ARG2 or ARG3 depencing on the
-other arguments) in either case can be a symbol indicating the
-format of the return value (see `olc-recover' for details)."
+If FORMAT is `area' (or any other value), the returned value is an
+full open location code."
   (unless (fboundp 'request)
     (error "`request' library is not loaded"))
 
-  (let (code reference format)
+  (let (code reference)
     (cond ((and (stringp arg1) (not (stringp arg2)))
            (if (string-match "^\\(\\S-+\\)\\s-+\\(.*\\)$" arg1)
                (setq code (match-string 1 arg1)
-                     reference (match-string 2 arg1)
-                     format arg2)
+                     reference (match-string 2 arg1))
              (signal 'wrong-type-argument arg1)))
           ((and (stringp arg1) (stringp arg2))
-           (setq code arg1 reference arg2 format arg3))
+           (setq code arg1 reference arg2))
           (t (signal 'wrong-type-argument arg1)))
     (let ((resp (request "https://nominatim.openstreetmap.org/search"
                   :params `((q . ,reference)
@@ -513,7 +581,7 @@ format of the return value (see `olc-recover' for details)."
           (olc-recover code
                        (string-to-number (alist-get 'lat data))
                        (string-to-number (alist-get 'lon data))
-                       format))))))
+                       :format format))))))
 
 
 (provide 'olc)

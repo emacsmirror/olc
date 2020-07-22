@@ -120,7 +120,7 @@ but don't count on this.
 @node Functions,,Data types,Top
 @unnumberedsec Functions
 
-@defun olc-encode lat lon len
+@defun olc-encode lat lon &key length
 Encode a latitude @var{lat}, longitude @var{lon}, into an open
 location code of length @var{len}. The length is automatically clipped
 to between 2 and 15. (@code{olc-encode-error} is raised if the length
@@ -128,11 +128,13 @@ is otherwise invalid (i.e. 3, 5, 7, or 9).
 
 @example
 @group
-(olc-encode 58.397813 15.576063 11)
+(olc-encode 58.397813 15.576063)
+@result{} "9FCQ9HXG+4C"
+(olc-encode 58.397813 15.576063 :len 11)
 @result{} "9FCQ9HXG+4CG"
-(olc-encode 58.397813 15.576063 8)
+(olc-encode 58.397813 15.576063 :len 8)
 @result{} "9FCQ9HXG+"
-(olc-encode 58.397813 15.576063 4)
+(olc-encode 58.397813 15.576063 :len 4)
 @result{} "9FCQ0000+"
 @end group
 @end example
@@ -157,7 +159,7 @@ coordinates, an empty code, and so forth).
 @end example
 @end defun
 
-@defun olc-shorten code lat lon &optional limit
+@defun olc-shorten code lat lon &key limit
 Shorten @var{code}, which must be a full open location code, using
 latitude @var{lat} and longitude @var{lon} as the reference. If
 @var{limit} is specified, then the code will be shortened by at most
@@ -169,13 +171,42 @@ or shortened code, of if @var{limit} is not even.
 @group
 (olc-shorten "9C3W9QCJ+2VX" 51.3701125 -1.217765625)
 @result{} "+2VX"
-(olc-shorten "9C3W9QCJ+2VX" 51.3701125 -1.217765625 4)
+(olc-shorten "9C3W9QCJ+2VX" 51.3701125 -1.217765625 :limit 4)
 @result{} "9QCJ+2VX"
 @end group
 @end example
 @end defun
 
-@defun olc-recover code lat lon &optional format
+@defun olc-shorten-geo code &key limit
+Shorten @var{code}, which must be a full open location code, finding a
+reference near the encoded location. If @var{limit} is non-nil, then
+the code will be shortened by at most that many digits. If the code
+can't be shortened, the original code is returned.
+
+If @var{zoom} is non-nil, then limit references to that zoom level.
+The default is 8 and the maximum is 18. Higher zoom levels yield more
+precise but longer references. Lower zoom levels yield simpler
+references but longer codes. The default seems to usually produce
+codes with four characters before the plus sign.
+
+@code{olc-shorten-error} is raised if @var{code} is a padded or
+shortened code, of if @var{limit} is not even.
+
+@example
+@group
+(olc-shorten-geo "5Q6HM24Q+89")
+@result{} "M24Q+89 Mutitjulu, Northern Territory, Australia"
+(olc-shorten-geo "5Q6HM24Q+89" :limit 2)
+@result{} "6HM24Q+89 Northern Territory, Australia"
+(olc-shorten-geo "5Q6HM24Q+89" :zoom 14)
+@result{} "M24Q+89 Mutitjulu, Northern Territory, Australia"
+(olc-shorten-geo "5Q6HM24Q+89" :zoom 1)
+"6HM24Q+89 Australia"
+@end group
+@end example
+@end defun
+
+@defun olc-recover code lat lon &key format
 Recover the closest point to coordinates @var{lat} and @var{lon} with
 a code that can be shortened to @var{code}. If @var{format} is
 @code{latlon}, then the center of the recovered area (@var{latitude} .
@@ -186,13 +217,13 @@ value), the returned value is an full open location code.
 @group
 (olc-recover "+2VX" 51.3701125 -1.217765625)
 @result{} "9C3W9QCJ+2VX"
-(olc-recover "+2VX" 51.3701125 -1.217765625 'latlon)
+(olc-recover "+2VX" 51.3701125 -1.217765625 :format 'latlon)
 @result{} (51.370112500000005 . -1.2177656250000002)
 @end group
 @end example
 @end defun
 
-@defun olc-recover-string arg1 &optional arg2 arg3
+@defun olc-recover-geo arg1 &optional arg2 &key format
 Recover a shortened code @i{without} the reference latitude and
 longitude.
 
@@ -209,11 +240,11 @@ details).
 
 @example
 @group
-(olc-recover-string "M24Q+89 Mutitjulu")
+(olc-recover-geo "M24Q+89 Mutitjulu")
 @result{} "5Q6HM24Q+89"
-(olc-recover-string "M24Q+89" "Mutitjulu")
+(olc-recover-geo "M24Q+89" "Mutitjulu")
 @result{} "5Q6HM24Q+89"
-(olc-recover-string "M24Q+89" "Mutitjulu" 'latlon)
+(olc-recover-geo "M24Q+89" "Mutitjulu" :format 'latlon)
 @result{} (-25.344187500000004 . 131.0384375)
 @end group
 @end example
