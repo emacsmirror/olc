@@ -1,5 +1,12 @@
 2020-07-23  David Byers  <david.byers@liu.se>
 
+	Fix issue #2:
+	* olc.el (olc-parse-code): Add type checks.
+	(olc-encode): Add type checks.
+	(olc-shorten): Add type checks.
+	(olc-shorten-compound): Add type and range checks.
+	(olc-recover): Add type checks.
+
 	Fix issue #3:
 	* olc.el (olc-parse-code): Save match data.
 	(olc-is-valid): Save match data.

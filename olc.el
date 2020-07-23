@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 David Byers
 ;;
 ;; Author: David Byers <david.byers@liu.se>
-;; Version: 1.0.1
+;; Version: 1.0.2
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: extensions, lisp
 ;; URL: https://gitlab.liu.se/davby02/olc
@@ -165,10 +165,11 @@ raise, and args for the raised error.
       (expt 20 (- (floor (+ 2 (/ len 2)))))
     (/ (expt 20 -3) (expt 5 (- len 10)))))
 
-(defun olc-parse-code (code)
+(cl-defun olc-parse-code (code)
   "Parse an open location code CODE."
   (if (olc-parse-p code)
       code
+    (cl-check-type code stringp)
     (save-match-data
       (let ((pos 0)
             (pairs nil)
@@ -344,6 +345,10 @@ LEN is automatically clipped to between 2 and 15.
 
 Returns an olc-area structure. Raises olc-encode-error if the
 values cannot (legally) be encoded to the selected length."
+  (cl-check-type lat number)
+  (cl-check-type lon number)
+  (cl-check-type len integer)
+
   (setq len (max 2 (min 15 len)))
   (when (and (< len 11) (/= (% len 2) 0))
     (signal 'olc-encode-error "invalid encoding length"))
@@ -445,11 +450,12 @@ specified, then the code will be shortened by at most that many
 digits. If the code can't be shortened, the original code is
 returned. `olc-shorten-error' is raised if CODE is a padded or
 shortened code, of if LIMIT is not positive and even."
+  (cl-check-type lat number)
+  (cl-check-type lon number)
+  (cl-check-type limit (member 2 4 6 8 10 12))
+
   (let* ((parse (olc-parse-code code))
          (area (olc-decode parse)))
-    (unless (and (> limit 0) (= 0 (% limit 2)))
-      (signal 'olc-shorten-error
-              (list "limit must be even and positive" code)))
     (when (olc-is-short parse)
       (signal 'olc-shorten-error
               (list "can't shorten shortened codes" code)))
@@ -493,15 +499,29 @@ it can take some time to complete. If you can set the zoom level
 to a single number, then it will make one call only, and is much
 faster.
 "
+  (cl-check-type code stringp)
+  (cl-check-type limit (member 2 4 6 8 10 12))
+  (cl-check-type zoom (or integer listp))
+
   (save-match-data
     (let* ((area (olc-decode code))
            (zoom-lo (cond ((numberp zoom) zoom)
                           ((listp zoom) (elt zoom 0))
                           (t (signal 'args-out-of-range zoom))))
-           (zoom-hi (cond ((numberp zoom) (1+ zoom))
-                          ((listp zoom) (1+ (elt zoom 1)))
+           (zoom-hi (cond ((numberp zoom) zoom)
+                          ((listp zoom) (elt zoom 1))
                           (t (signal 'args-out-of-range zoom))))
            result)
+
+      ;; Check that zoom range is not inverted
+      (when (or (< zoom-hi zoom-lo)
+                (< zoom-hi 1) (> zoom-hi 18)
+                (< zoom-lo 1) (> zoom-lo 18))
+        (signal 'args-out-of-range zoom))
+
+      ;; Otherwise we may never hit the high limit
+      (setq zoom-hi (1+ zoom-hi))
+
       (catch 'result
         (while (< zoom-lo zoom-hi)
           (let* ((zoom (floor (+ zoom-lo zoom-hi) 2))
@@ -552,6 +572,11 @@ center of the recovered area (LATITUDE . LONGITUDE) is returned.
 
 If FORMAT is `area' (or any other value), the returned value is an
 full open location code."
+  (cl-check-type code stringp)
+  (cl-check-type lat number)
+  (cl-check-type lon number)
+  (cl-check-type format (member area latlon))
+
   (let ((parse (olc-parse-code code)))
     (if (olc-is-full parse)
         (if (eq format 'latlon)
@@ -601,7 +626,7 @@ full open location code."
 
     ;; Check types (defer check of ref)
     (cl-check-type code stringp)
-    (cl-check-type format (member latlon area nil))
+    (cl-check-type format (member latlon area))
 
     ;; Process code and check ref
     (cond ((string-match "^\\(\\S-+\\)\\s-+\\(.*\\)$" code)
