@@ -1,5 +1,16 @@
 2020-07-23  David Byers  <david.byers@liu.se>
 
+	Fix issue #3:
+	* olc.el (olc-parse-code): Save match data.
+	(olc-is-valid): Save match data.
+	(olc-shorten-compound): Save match data.
+	(olc-recover-compound): Save match data.
+	(olc-is-valid): Rewrote as string operations.
+	(olc-value-mapping): Changed to defconst.
+	(olc-digit-mapping): Changed to defconst.
+	(olc-is-short): Operate on string.
+	(olc-is-full): Operate on string.
+
 	Fix issue #1 more properly:
 	* olc.el (olc-recover): Honor format arg when dealing with full
 	codes.
