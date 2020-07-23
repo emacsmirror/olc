@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 David Byers
 ;;
 ;; Author: David Byers <david.byers@liu.se>
-;; Version: 1.0
+;; Version: 1.0.1
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: extensions, lisp
 ;; URL: https://gitlab.liu.se/davby02/olc
@@ -25,12 +25,12 @@
 ;;; Commentary:
 
 ;; This program provides basic open location code support in Emacs
-;; Lisp. The support for recovering shortened codes depends on the
+;; Lisp.  The support for recovering shortened codes depends on the
 ;; request library and uses OpenStreetMap; please check the terms of
 ;; use for the service to ensure that you remain compliant.
 ;;
 ;; All methods required by the open location code specification are
-;; provided in some form. The implementation passed the tests present
+;; provided in some form.  The implementation passed the tests present
 ;; in the open location code github repository at the time of writing
 ;; almost cleanly -- there are some minor rounding issues in decode.
 
@@ -65,6 +65,8 @@
   "Error encoding open location code" 'olc-error)
 (define-error 'olc-shorten-error
   "Error shortening open location code" 'olc-error)
+(define-error 'olc-recover-error
+  "Error recovering open location code" 'olc-error)
 
 
 ;;; Base 20 digits:
@@ -354,13 +356,13 @@ values cannot (legally) be encoded to the selected length."
 (defun olc-decode (code)
   "Decode open location code CODE.
 
-Returns an `olc-area' structure. Raises `olc-parse-error' if the
+Returns an `olc-area' structure.  Raises `olc-parse-error' if the
 code can't be parsed, and `olc-decode-error' if it can't be
 decoded (e.g. a padded shortened code, a padded code with grid
 coordinates, an empty code, and so forth).
 
 Since this function uses floating point calculations, the results
-are not identical to e.g. the C++ reference implementation. The
+are not identical to e.g. the C++ reference implementation.  The
 differences, however, are extremely small."
   (let* ((parse (olc-parse-code code))
          (latscale (* (expt 20 4) (expt 5 5)))
@@ -469,7 +471,8 @@ faster.
       (while (< zoom-lo zoom-hi)
         (let* ((zoom (floor (+ zoom-lo zoom-hi) 2))
                (resp (request-response-data
-                      (request "https://nominatim.openstreetmap.org/reverse"
+                      (request
+                        "https://nominatim.openstreetmap.org/reverse"
                         :params `((lat . ,(olc-area-lat area))
                                   (lon . ,(olc-area-lon area))
                                   (zoom . ,zoom)
@@ -545,43 +548,58 @@ full open location code."
           (olc-encode lat lon :len (olc-parse-precision parse)))))))
 
 
-(cl-defun olc-recover-compound (arg1 &optional arg2 &key (format 'area))
-  "Recover a location from a short code and reference.
+(cl-defun olc-recover-compound (code &key ref (format 'area))
+  "Recover a location from a compound code CODE.
 
-When called with one argument, ARG1, it must be a string
-consisting of a shortened open location code followed by
-whitespace and a geographical location.
-
-When called with two strings, ARG1 and ARG2, the first must be a
-shortened open location code and the second if the geographical
-location.
+Optional keyword argument REF indicates the reference to use. If
+not specified, the reference is assumed to be embedded into CODE.
 
 If FORMAT is `area' (or any other value), the returned value is an
 full open location code."
-  (unless (fboundp 'request)
-    (error "`request' library is not loaded"))
+  ;; Make sure we can do requests
+  (unless (fboundp 'request) (signal 'void-function  'request))
 
-  (let (code reference)
-    (cond ((and (stringp arg1) (not (stringp arg2)))
-           (if (string-match "^\\(\\S-+\\)\\s-+\\(.*\\)$" arg1)
-               (setq code (match-string 1 arg1)
-                     reference (match-string 2 arg1))
-             (signal 'wrong-type-argument arg1)))
-          ((and (stringp arg1) (stringp arg2))
-           (setq code arg1 reference arg2))
-          (t (signal 'wrong-type-argument arg1)))
+  ;; Check types (defer check of ref
+  (cl-check-type code stringp)
+  (cl-check-type format (member latlon area nil))
+
+  (if (string-match "^\\(\\S-+\\)\\s-+\\(.*\\)$" code)
+      (progn (cl-check-type ref null)
+             (setq ref (match-string 2 code)
+                   code (match-string 1 code)))
+    (cl-check-type ref stringp))
+
+  ;; If the code is full then return it
+  (if (olc-is-full code)
+      code
     (let ((resp (request "https://nominatim.openstreetmap.org/search"
-                  :params `((q . ,reference)
+                  :params `((q . ,ref)
                             (format . "json")
                             (limit . 1))
                   :parser #'json-read
                   :sync t)))
-      (when (eq 200 (request-response-status-code resp))
-        (let ((data (elt (request-response-data resp) 0)))
-          (olc-recover code
-                       (string-to-number (alist-get 'lat data))
-                       (string-to-number (alist-get 'lon data))
-                       :format format))))))
+
+      ;; Check that we got a response
+      (unless (eq 200 (request-response-status-code resp))
+        (signal 'olc-recover-error
+                (list "error decoding reference"
+                      (request-response-status-code resp))))
+
+      (let* ((data (elt (request-response-data resp) 0))
+             (lat (alist-get 'lat data))
+             (lon (alist-get 'lon data)))
+
+        ;; Check that we have a lat and lon
+        (unless (and lat lon)
+          (signal 'olc-recover-error
+                  (list "reference location missing lat or lon"
+                        data)))
+
+        ;; Finally recover the code!
+        (olc-recover code
+                     (string-to-number lat)
+                     (string-to-number lon)
+                     :format format)))))
 
 
 (provide 'olc)
