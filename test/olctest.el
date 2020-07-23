@@ -240,18 +240,6 @@
 
 (defun olctest-issue-1 ()
   (olctest-testcase "local:issue-1"
-    (olctest-string= :exp "9FFV9VH8+9C"
-                     :act (olc-recover-compound "9FFV9VH8+9C" :ref "Antarctica")
-                     :msg "O1")
-
-    (olctest-string= :exp "9FFPMGGC+9C"
-                     :act (olc-recover-compound "+9C Sweden")
-                     :msg "O2")
-
-    (olctest-string= :exp "9FFPMGGC+9C"
-                     :act (olc-recover-compound "+9C" :ref "Sweden")
-                     :msg "O3")
-
     (olctest-assert-error (:exp (wrong-type-argument) :msg "F1")
       (olc-recover-compound nil))
 
@@ -262,7 +250,33 @@
       (olc-recover-compound "+9C" :ref nil))
 
     (olctest-assert-error (:exp (wrong-type-argument) :msg "F4")
-      (olc-recover-compound "+9C Sweden" :format 'undefined))))
+      (olc-recover-compound "+9C Sweden" :format 'undefined))
+
+    (olctest-string= :exp "9FFV9VH8+9C"
+                     :act (olc-recover-compound "9FFV9VH8+9C")
+                     :msg "O1")
+
+    (olctest-string= :exp "9FFV9VH8+9C"
+                     :act (olc-recover-compound "9FFV9VH8+9C" :ref "Antarctica")
+                     :msg "O1")
+
+    (olctest-equal :exp '(-89.99875 . -179.99875)
+                   :act (olc-recover "22222222+" 0 0 :format 'latlon)
+                   :msg "O4")
+
+    (olctest-equal :exp '(-89.99875 . -179.99875)
+                   :act (olc-recover-compound "22222222+" :format 'latlon)
+                   :msg "O4")
+
+    (olctest-string= :exp "9FFPMGGC+9C"
+                     :act (olc-recover-compound "+9C Sweden")
+                     :msg "O2")
+
+    (olctest-string= :exp "9FFPMGGC+9C"
+                     :act (olc-recover-compound "+9C" :ref "Sweden")
+                     :msg "O3")
+
+    ))
 
 
 (defun olctest-run-all ()

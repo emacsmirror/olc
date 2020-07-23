@@ -519,7 +519,11 @@ If FORMAT is `area' (or any other value), the returned value is an
 full open location code."
   (let ((parse (olc-parse-code code)))
     (if (olc-is-full parse)
-        (upcase code)
+        (if (eq format 'latlon)
+            (let ((area (olc-decode parse)))
+              (cons (olc-area-lat area)
+                    (olc-area-lon area)))
+          (upcase code))
       (setq lat (olc-clip-latitude lat)
             lon (olc-normalize-longitude lon))
       (let* ((padlen (- (olc-parse-precision parse)
@@ -559,19 +563,21 @@ full open location code."
   ;; Make sure we can do requests
   (unless (fboundp 'request) (signal 'void-function  'request))
 
-  ;; Check types (defer check of ref
+  ;; Check types (defer check of ref)
   (cl-check-type code stringp)
   (cl-check-type format (member latlon area nil))
 
-  (if (string-match "^\\(\\S-+\\)\\s-+\\(.*\\)$" code)
-      (progn (cl-check-type ref null)
-             (setq ref (match-string 2 code)
-                   code (match-string 1 code)))
-    (cl-check-type ref stringp))
+  ;; Process code and check ref
+  (cond ((string-match "^\\(\\S-+\\)\\s-+\\(.*\\)$" code)
+         (progn (cl-check-type ref null)
+                (setq ref (match-string 2 code)
+                      code (match-string 1 code))))
+        ((olc-is-full code))
+        (t (cl-check-type ref stringp)))
 
   ;; If the code is full then return it
   (if (olc-is-full code)
-      code
+      (olc-recover code 0 0 :format format)
     (let ((resp (request "https://nominatim.openstreetmap.org/search"
                   :params `((q . ,ref)
                             (format . "json")

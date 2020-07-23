@@ -1,5 +1,11 @@
 2020-07-23  David Byers  <david.byers@liu.se>
 
+	Fix issue #1 more properly:
+	* olc.el (olc-recover): Honor format arg when dealing with full
+	codes.
+	(olc-recover-compound): Defer to olc-recover when dealing with
+	full codes.
+
 	Fix issue #1 (olc-recover-compound fails on full codes):
 	* test/olctest.el: Improved test macros. Tests for issue 1.
 
