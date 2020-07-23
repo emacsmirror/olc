@@ -1,3 +1,13 @@
+2020-07-23  David Byers  <david.byers@liu.se>
+
+	Fix issue #1 (olc-recover-compound fails on full codes):
+	* test/olctest.el: Improved test macros. Tests for issue 1.
+
+	* olc.el (general): Whitespace fixes.
+	(olc-recover-error): New error.
+	(olc-recover-compound): New argument list. Type checks. Handle
+	full codes being passed.
+
 2020-07-22  David Byers  <david.byers@liu.se>
 
 	Fix test cases:

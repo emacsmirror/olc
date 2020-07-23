@@ -22,6 +22,17 @@
 
 all: olc.elc olc.info
 
+check:
+	emacs --batch \
+		--eval "(setq-default indent-tabs-mode nil)" \
+		-f package-initialize \
+		-l elisp-lint \
+		-f elisp-lint-files-batch \
+		--no-check-declare \
+		--no-indent \
+		olc.el ; \
+	rm -f olc-autoloads.el olc-autoloads.el~
+
 olc.elc: olc.el
 	emacs --batch -f batch-byte-compile olc.el
 
