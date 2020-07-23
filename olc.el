@@ -72,10 +72,10 @@
 ;;; Base 20 digits:
 
 
-(defvar olc-value-mapping "23456789CFGHJMPQRVWX"
+(defconst olc-value-mapping "23456789CFGHJMPQRVWX"
   "Mapping from values to olc base 20 digits.")
 
-(defvar olc-digit-mapping
+(defconst olc-digit-mapping
   (let ((count 0))
     (mapcan (lambda (letter)
               (prog1 (list (cons letter count)
@@ -169,119 +169,151 @@ raise, and args for the raised error.
   "Parse an open location code CODE."
   (if (olc-parse-p code)
       code
-    (let ((pos 0)
-          (pairs nil)
-          (short nil)
-          (precision nil)
-          (grid nil)
-          (padding 0))
+    (save-match-data
+      (let ((pos 0)
+            (pairs nil)
+            (short nil)
+            (precision nil)
+            (grid nil)
+            (padding 0))
 
-      ;; Parse up to four initial pairs
-      (catch 'break
-        (while (< pos (length code))
+        ;; Parse up to four initial pairs
+        (catch 'break
+          (while (< pos (length code))
+            (olc-transform-error
+                (args-out-of-range olc-parse-error
+                                   "code too short" code (1+ pos))
+              (cond ((eq (elt code pos) ?+) (throw 'break nil))
+                    ((eq (elt code pos) ?0) (throw 'break nil))
+                    ((= (length pairs) 4) (throw 'break nil))
+                    ((not (olc-valid-char (elt code pos)))
+                     (signal 'olc-parse-error
+                             (list "invalid character" pos code)))
+                    ((not (olc-valid-char (elt code (1+ pos))))
+                     (signal 'olc-parse-error
+                             (list "invalid character" (1+ pos) code)))
+                    (t (setq pairs (cons (cons (elt code pos)
+                                               (elt code (1+ pos)))
+                                         pairs)))))
+            (setq pos (+ pos 2))))
+
+        ;; Measure the padding
+        (when (string-match "0+" code pos)
+          (setq pos (match-end 0)
+                padding (- (match-end 0) (match-beginning 0))))
+
+        ;; Parse the separator
+        (olc-transform-error
+            (args-out-of-range olc-parse-error
+                               "code too short" code pos)
+          (if (eq (elt code pos) ?+)
+              (setq pos (1+ pos))
+            (signal 'olc-parse-error
+                    (list "missing separator" pos code))))
+
+        ;; Check the length of the padding
+        (unless (and (= (% padding 2) 0)
+                     (<= (+ padding (* 2 (length pairs))) 8))
+          (signal 'olc-parse-error
+                  (list "incorrect padding length" pos code)))
+
+        ;; Determine if the code is shortened or not
+        (setq short (< (+ (* 2 (length pairs)) padding) 8))
+
+        ;; We cant be short and have padding (not sure why)
+        (when (and short (> padding 0))
+          (signal 'olc-parse-error
+                  (list "padded codes can't be shortened" pos code)))
+
+        ;; Determine the precision of the code
+        (setq precision (- 8 padding))
+
+        ;; Parse what's after the separator
+        (when (< pos (length code))
+          (when (> padding 0)
+            (signal 'olc-parse-error
+                    (list "padding followed by data" pos code)))
+
+          ;; Parse one more pair
           (olc-transform-error
               (args-out-of-range olc-parse-error
                                  "code too short" code (1+ pos))
-            (cond ((eq (elt code pos) ?+) (throw 'break nil))
-                  ((eq (elt code pos) ?0) (throw 'break nil))
-                  ((= (length pairs) 4) (throw 'break nil))
-                  ((not (olc-valid-char (elt code pos)))
+            (setq pairs (cons (cons (elt code pos)
+                                    (elt code (1+ pos)))
+                              pairs)
+                  pos (+ 2 pos)
+                  precision (+ 2 precision)))
+
+          ;; Parse grid
+          (while (< pos (length code))
+            (cond ((not (olc-valid-char (elt code pos)))
                    (signal 'olc-parse-error
                            (list "invalid character" pos code)))
-                  ((not (olc-valid-char (elt code (1+ pos))))
-                   (signal 'olc-parse-error
-                           (list "invalid character" (1+ pos) code)))
-                  (t (setq pairs (cons (cons (elt code pos)
-                                             (elt code (1+ pos)))
-                                       pairs)))))
-          (setq pos (+ pos 2))))
+                  ((>= (length grid) 5) (setq pos (1+ pos)))
+                  (t (setq grid (cons (elt code pos) grid)
+                           pos (1+ pos)
+                           precision (1+ precision))))))
 
-      ;; Measure the padding
-      (when (string-match "0+" code pos)
-        (setq pos (match-end 0)
-              padding (- (match-end 0) (match-beginning 0))))
+        ;; Check for an empty code
+        (unless pairs
+          (signal 'olc-parse-error (list "invalid code" 0 code)))
 
-      ;; Parse the separator
-      (olc-transform-error
-          (args-out-of-range olc-parse-error
-                             "code too short" code pos)
-        (if (eq (elt code pos) ?+)
-            (setq pos (1+ pos))
-          (signal 'olc-parse-error
-                  (list "missing separator" pos code))))
-
-      ;; Check the length of the padding
-      (unless (and (= (% padding 2) 0)
-                   (<= (+ padding (* 2 (length pairs))) 8))
-        (signal 'olc-parse-error
-                (list "incorrect padding length" pos code)))
-
-      ;; Determine if the code is shortened or not
-      (setq short (< (+ (* 2 (length pairs)) padding) 8))
-
-      ;; We cant be short and have padding (not sure why)
-      (when (and short (> padding 0))
-        (signal 'olc-parse-error
-                (list "padded codes can't be shortened" pos code)))
-
-      ;; Determine the precision of the code
-      (setq precision (- 8 padding))
-
-      ;; Parse what's after the separator
-      (when (< pos (length code))
-        (when (> padding 0)
-          (signal 'olc-parse-error
-                  (list "padding followed by data" pos code)))
-
-        ;; Parse one more pair
-        (olc-transform-error
-            (args-out-of-range olc-parse-error
-                               "code too short" code (1+ pos))
-          (setq pairs (cons (cons (elt code pos)
-                                  (elt code (1+ pos)))
-                            pairs)
-                pos (+ 2 pos)
-                precision (+ 2 precision)))
-
-        ;; Parse grid
-        (while (< pos (length code))
-          (cond ((not (olc-valid-char (elt code pos)))
-                 (signal 'olc-parse-error
-                         (list "invalid character" pos code)))
-                ((>= (length grid) 5) (setq pos (1+ pos)))
-                (t (setq grid (cons (elt code pos) grid)
-                         pos (1+ pos)
-                         precision (1+ precision))))))
-
-      ;; Check for an empty code
-      (unless pairs
-        (signal 'olc-parse-error (list "invalid code" 0 code)))
-
-      ;; Return the result
-      (olc-parse-create :pairs (nreverse pairs)
-                        :grid (nreverse grid)
-                        :short short
-                        :precision precision))))
+        ;; Return the result
+        (olc-parse-create :pairs (nreverse pairs)
+                          :grid (nreverse grid)
+                          :short short
+                          :precision precision)))))
 
 
 ;;; Public functions:
 
+(defconst olc-code-regexp (format "^\\([%s]*\\)\\(0*\\)\\+\\([%s]*\\)$"
+                                  olc-value-mapping
+                                  olc-value-mapping)
+  "Regular expression for parsing codes.")
+
 
 (defun olc-is-valid (code)
   "Return non-nil if CODE is a valid open location code."
-  (condition-case nil
-      (olc-parse-code code)
-    (olc-parse-error nil)))
+  (or (olc-parse-p code)
+      (save-match-data
+        (let ((case-fold-search t))
 
+          ;; The code is decomposed into PAIRS PADDING "+" SUFFIX.
+          ;;
+          ;; Rules:
+          ;;
+          ;; - For all codes:
+          ;;   - Pairs has an even (zero counts) length of at most 8.
+          ;;   - Suffix is either zero or between 2 and 8 characters.
+          ;;   - One or both of pairs and suffix must not be empty.
+          ;;
+          ;; - If there is padding:
+          ;;   - The suffix must be empty
+          ;;   - The length of pairs and padding combined must be 8
+
+          (when (string-match olc-code-regexp code)
+            (let ((pair-len (- (match-end 1) (match-beginning 1)))
+                  (padd-len (- (match-end 2) (match-beginning 2)))
+                  (suff-len (- (match-end 3) (match-beginning 3))))
+              (and (and (= 0 (% pair-len 2)) (<= pair-len 8)) ; Check pairs
+                   (and (<= suff-len 8) (/= suff-len 1)) ; Check suffix
+                   (> (+ pair-len suff-len) 0) ; Check for not empty
+                   (or (= padd-len 0)          ; Empty padding...
+                       (and (= suff-len 0)     ; ...or suffix
+                            (= (+ padd-len pair-len) 8))))))))))
 
 (defun olc-is-short (code)
   "Return non-nil if CODE is a valid short open location code.
 
 Note that nil means the code is either not short, or it is
 invalid."
-  (condition-case nil
-      (olc-parse-short (olc-parse-code code))
-    (olc-parse-error nil)))
+  (if (olc-parse-p code)
+      (olc-parse-short code)
+    (and (olc-is-valid code)
+         (or (< (length code) 9)
+             (and (>= (length code) 9)
+                  (not (= (elt code 8) ?+)))))))
 
 
 (defun olc-is-full (code)
@@ -289,9 +321,11 @@ invalid."
 
 Note that nil means the code is either not long, or it is
 invalid."
-  (condition-case nil
-      (not (olc-parse-short (olc-parse-code code)))
-    (olc-parse-error nil)))
+  (if (olc-parse-p code)
+      (not (olc-parse-short code))
+    (and (olc-is-valid code)
+         (and (>= (length code) 9)
+              (= (elt code 8) ?+)))))
 
 
 (defun olc-code-precision (code)
@@ -459,53 +493,54 @@ it can take some time to complete. If you can set the zoom level
 to a single number, then it will make one call only, and is much
 faster.
 "
-  (let* ((area (olc-decode code))
-         (zoom-lo (cond ((numberp zoom) zoom)
-                        ((listp zoom) (elt zoom 0))
-                        (t (signal 'args-out-of-range zoom))))
-         (zoom-hi (cond ((numberp zoom) (1+ zoom))
-                        ((listp zoom) (1+ (elt zoom 1)))
-                        (t (signal 'args-out-of-range zoom))))
-         result)
-    (catch 'result
-      (while (< zoom-lo zoom-hi)
-        (let* ((zoom (floor (+ zoom-lo zoom-hi) 2))
-               (resp (request-response-data
-                      (request
-                        "https://nominatim.openstreetmap.org/reverse"
-                        :params `((lat . ,(olc-area-lat area))
-                                  (lon . ,(olc-area-lon area))
-                                  (zoom . ,zoom)
-                                  (format . "json"))
-                        :parser #'json-read
-                        :sync t)))
-               (tmp-code
-                (when resp
-                  (olc-shorten code
-                               (string-to-number
-                                (alist-get 'lat resp))
-                               (string-to-number
-                                (alist-get 'lon resp))
-                               :limit limit)))
-               (padlen (when (string-match "+" tmp-code)
-                         (- 8 (match-beginning 0)))))
+  (save-match-data
+    (let* ((area (olc-decode code))
+           (zoom-lo (cond ((numberp zoom) zoom)
+                          ((listp zoom) (elt zoom 0))
+                          (t (signal 'args-out-of-range zoom))))
+           (zoom-hi (cond ((numberp zoom) (1+ zoom))
+                          ((listp zoom) (1+ (elt zoom 1)))
+                          (t (signal 'args-out-of-range zoom))))
+           result)
+      (catch 'result
+        (while (< zoom-lo zoom-hi)
+          (let* ((zoom (floor (+ zoom-lo zoom-hi) 2))
+                 (resp (request-response-data
+                        (request
+                          "https://nominatim.openstreetmap.org/reverse"
+                          :params `((lat . ,(olc-area-lat area))
+                                    (lon . ,(olc-area-lon area))
+                                    (zoom . ,zoom)
+                                    (format . "json"))
+                          :parser #'json-read
+                          :sync t)))
+                 (tmp-code
+                  (when resp
+                    (olc-shorten code
+                                 (string-to-number
+                                  (alist-get 'lat resp))
+                                 (string-to-number
+                                  (alist-get 'lon resp))
+                                 :limit limit)))
+                 (padlen (when (string-match "+" tmp-code)
+                           (- 8 (match-beginning 0)))))
 
-          ;; Keep the shortest code we see that has at most limit
-          ;; chars removed
-          (when (and (<= padlen limit)
-                     (or (null result)
-                         (< (length tmp-code) (length (car result)))))
-            (setq result (cons tmp-code
-                               (alist-get 'display_name resp))))
+            ;; Keep the shortest code we see that has at most limit
+            ;; chars removed
+            (when (and (<= padlen limit)
+                       (or (null result)
+                           (< (length tmp-code) (length (car result)))))
+              (setq result (cons tmp-code
+                                 (alist-get 'display_name resp))))
 
-          ;; Zoom in or out
-          (if (< padlen limit)
-              (setq zoom-lo (1+ zoom))
-            (setq zoom-hi zoom))))
-      (if (and result (> 8 (progn (string-match "+" (car result))
-                                  (match-end 0))))
-          (concat (car result) " " (cdr result))
-        code))))
+            ;; Zoom in or out
+            (if (< padlen limit)
+                (setq zoom-lo (1+ zoom))
+              (setq zoom-hi zoom))))
+        (if (and result (> 8 (progn (string-match "+" (car result))
+                                    (match-end 0))))
+            (concat (car result) " " (cdr result))
+          code)))))
 
 
 (cl-defun olc-recover (code lat lon &key (format 'area))
@@ -561,51 +596,52 @@ not specified, the reference is assumed to be embedded into CODE.
 If FORMAT is `area' (or any other value), the returned value is an
 full open location code."
   ;; Make sure we can do requests
-  (unless (fboundp 'request) (signal 'void-function  'request))
+  (save-match-data
+    (unless (fboundp 'request) (signal 'void-function  'request))
 
-  ;; Check types (defer check of ref)
-  (cl-check-type code stringp)
-  (cl-check-type format (member latlon area nil))
+    ;; Check types (defer check of ref)
+    (cl-check-type code stringp)
+    (cl-check-type format (member latlon area nil))
 
-  ;; Process code and check ref
-  (cond ((string-match "^\\(\\S-+\\)\\s-+\\(.*\\)$" code)
-         (progn (cl-check-type ref null)
-                (setq ref (match-string 2 code)
-                      code (match-string 1 code))))
-        ((olc-is-full code))
-        (t (cl-check-type ref stringp)))
+    ;; Process code and check ref
+    (cond ((string-match "^\\(\\S-+\\)\\s-+\\(.*\\)$" code)
+           (progn (cl-check-type ref null)
+                  (setq ref (match-string 2 code)
+                        code (match-string 1 code))))
+          ((olc-is-full code))
+          (t (cl-check-type ref stringp)))
 
-  ;; If the code is full then return it
-  (if (olc-is-full code)
-      (olc-recover code 0 0 :format format)
-    (let ((resp (request "https://nominatim.openstreetmap.org/search"
-                  :params `((q . ,ref)
-                            (format . "json")
-                            (limit . 1))
-                  :parser #'json-read
-                  :sync t)))
+    ;; If the code is full then return it
+    (if (olc-is-full code)
+        (olc-recover code 0 0 :format format)
+      (let ((resp (request "https://nominatim.openstreetmap.org/search"
+                    :params `((q . ,ref)
+                              (format . "json")
+                              (limit . 1))
+                    :parser #'json-read
+                    :sync t)))
 
-      ;; Check that we got a response
-      (unless (eq 200 (request-response-status-code resp))
-        (signal 'olc-recover-error
-                (list "error decoding reference"
-                      (request-response-status-code resp))))
-
-      (let* ((data (elt (request-response-data resp) 0))
-             (lat (alist-get 'lat data))
-             (lon (alist-get 'lon data)))
-
-        ;; Check that we have a lat and lon
-        (unless (and lat lon)
+        ;; Check that we got a response
+        (unless (eq 200 (request-response-status-code resp))
           (signal 'olc-recover-error
-                  (list "reference location missing lat or lon"
-                        data)))
+                  (list "error decoding reference"
+                        (request-response-status-code resp))))
 
-        ;; Finally recover the code!
-        (olc-recover code
-                     (string-to-number lat)
-                     (string-to-number lon)
-                     :format format)))))
+        (let* ((data (elt (request-response-data resp) 0))
+               (lat (alist-get 'lat data))
+               (lon (alist-get 'lon data)))
+
+          ;; Check that we have a lat and lon
+          (unless (and lat lon)
+            (signal 'olc-recover-error
+                    (list "reference location missing lat or lon"
+                          data)))
+
+          ;; Finally recover the code!
+          (olc-recover code
+                       (string-to-number lat)
+                       (string-to-number lon)
+                       :format format))))))
 
 
 (provide 'olc)

@@ -62,6 +62,10 @@
   (unless (string= exp act)
     (olctest-record-failure :exp exp :act act :msg msg)))
 
+(cl-defun olctest-float= (&key exp act msg)
+  (unless (< (abs (- act exp)) olctest-decode-tolerance)
+    (olctest-record-failure :exp exp :act act :msg msg)))
+
 (cl-defun olctest-equal (&key exp act msg)
   (unless (equal exp act)
     (olctest-record-failure :exp exp :act act :msg msg)))
@@ -160,27 +164,27 @@
   "Test decoding."
   (olctest-testcase "reference:decoding"
     (olctest-run-csv ("decoding.csv" case)
-      (let ((area (olc-decode (alist-get 'code case)))
-            (exp-latlo (alist-get 'latLo case))
-            (exp-lathi (alist-get 'latHi case))
-            (exp-lonlo (alist-get 'lngLo case))
-            (exp-lonhi (alist-get 'lngHi case))
-            (exp-len (alist-get 'length case)))
-        (unless (and (= exp-len (olc-code-precision (alist-get 'code case)))
-                     (< (abs (- (olc-area-latlo area) exp-latlo)) olctest-decode-tolerance)
-                     (< (abs (- (olc-area-lathi area) exp-lathi)) olctest-decode-tolerance)
-                     (< (abs (- (olc-area-lonlo area) exp-lonlo)) olctest-decode-tolerance)
-                     (< (abs (- (olc-area-lonhi area) exp-lonhi)) olctest-decode-tolerance))
-          (olctest-record-failure
-           :exp (format "%d,%f,%f,%f,%f" exp-len exp-latlo exp-lonlo exp-lathi exp-lonhi)
-           :act (format "%d,%f,%f,%f,%f"
-                        (olc-code-precision (alist-get 'code case))
-                        (olc-area-latlo area)
-                        (olc-area-lonlo area)
-                        (olc-area-lathi area)
-                        (olc-area-lonhi area))
-           :msg (alist-get 'lineno case)))))))
-
+      (let* ((code (alist-get 'code case))
+             (parse (condition-case nil (olc-parse-code code) (error nil)))
+             (area (and parse (olc-decode parse)))
+             (exp-latlo (alist-get 'latLo case))
+             (exp-lathi (alist-get 'latHi case))
+             (exp-lonlo (alist-get 'lngLo case))
+             (exp-lonhi (alist-get 'lngHi case))
+             (exp-len (alist-get 'length case))
+             (lineno (alist-get 'lineno case))
+             (pact-len (and parse (olc-code-precision parse)))
+             (sact-len (olc-code-precision code))
+             (msg (format "%d:%s:%%s" lineno code)))
+        (if (null area)
+            (olctest-record-failure :exp 'success :act 'parse-error :msg code)
+          (olctest-equal :act (olc-code-precision code) :exp exp-len :msg (format msg "len(string)"))
+          (olctest-equal :act (olc-code-precision parse) :exp exp-len :msg (format msg "len(parsed)"))
+          (olctest-float= :act (olc-area-latlo area) :exp exp-latlo :msg (format msg "latlo"))
+          (olctest-float= :act (olc-area-lathi area) :exp exp-lathi :msg (format msg "lathi"))
+          (olctest-float= :act (olc-area-lonlo area) :exp exp-lonlo :msg (format msg "lonlo"))
+          (olctest-float= :act (olc-area-lonhi area) :exp exp-lonhi :msg (format msg "lonhi"))
+          )))))
 
 (defun olctest-shortcodes ()
   "Test recovering."
@@ -211,13 +215,18 @@
   (olctest-testcase "reference:validity"
     (olctest-run-csv ("validityTests.csv" case)
       (let* ((code (alist-get 'code case))
+             (parse (condition-case nil (olc-parse-code code) (error nil)))
              (exp (list (alist-get 'isValid case)
                         (alist-get 'isShort case)
                         (alist-get 'isFull case)))
-             (act (list (not (not (olc-is-valid code)))
-                        (not (not (olc-is-short code)))
-                        (not (not (olc-is-full code))))))
-        (olctest-equal :exp exp :act act :msg code)))))
+             (sact (list (and parse (not (not (olc-is-valid code))))
+                         (and parse (not (not (olc-is-short code))))
+                         (and parse (not (not (olc-is-full code))))))
+             (pact (list (and parse (not (not (olc-is-valid parse))))
+                         (and parse (not (not (olc-is-short parse))))
+                         (and parse (not (not (olc-is-full parse)))))))
+        (olctest-equal :exp exp :act pact :msg (format "%s:parsed" code))
+        (olctest-equal :exp exp :act sact :msg (format "%s:string" code))))))
 
 
 (defvar olctest-local-shorten-tests
@@ -237,6 +246,20 @@
              (actual (olc-shorten fullcode lat lon :limit len)))
         (olctest-string= :exp shortcode :act actual :msg len)))))
 
+
+(defun olctest-issue-3 ()
+  (olctest-testcase "local:issue-3"
+    (olctest-equal :exp nil
+                   :act (olc-is-short "22334455+")
+                   :msg "S1")
+
+    (olctest-equal :exp t
+                   :act (olc-is-short "334455+66")
+                   :msg "S2")
+
+    (olctest-equal :exp nil
+                   :act (olc-is-short "+12345678")
+                   :msg "S3")))
 
 (defun olctest-issue-1 ()
   (olctest-testcase "local:issue-1"
@@ -286,6 +309,7 @@
        (olctest-shortcodes)
        (olctest-validity)
        (olctest-localtests)
+       (olctest-issue-3)
        (olctest-issue-1)
        ))
 

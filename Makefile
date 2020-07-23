@@ -25,6 +25,7 @@ all: olc.elc olc.info
 check:
 	emacs --batch \
 		--eval "(setq-default indent-tabs-mode nil)" \
+		--eval "(setq-default fill-column 79)" \
 		-f package-initialize \
 		-l elisp-lint \
 		-f elisp-lint-files-batch \
@@ -42,8 +43,9 @@ olc.info: olc.texi
 .PHONY: test
 test:
 	( cd test && \
-	  emacs -batch \
+	  emacs --batch \
 		-f package-initialize \
 		-l ../olc.el \
 		-l olctest.el \
-		-f olctest-batch-test )
+		-f olctest-batch-test \
+		)
