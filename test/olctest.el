@@ -261,6 +261,117 @@
                    :act (olc-is-short "+12345678")
                    :msg "S3")))
 
+(defun olctest-issue-2 ()
+  (olctest-testcase "local:issue-2"
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-parse-code")
+      (olc-parse-code nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-is-valid")
+      (olc-is-valid nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-is-short")
+      (olc-is-short nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-is-full")
+      (olc-is-full nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-code-precision")
+      (olc-code-precision nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-encode:lat")
+      (olc-encode nil 1))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-encode:lon")
+      (olc-encode 1 nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-encode:key")
+      (olc-encode 1 1 :len nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-decode")
+      (olc-decode nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten:code")
+      (olc-shorten nil 1 1))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten:lat")
+      (olc-shorten "" nil 1))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten:lon")
+      (olc-shorten "" 1 nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten:limit:nil")
+      (olc-shorten "" 1 nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten:limit:lo")
+      (olc-shorten "" 1 1 :limit 0))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten:limit:hi")
+      (olc-shorten "" 1 1 :limit 19))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten:limit:odd")
+      (olc-shorten "" 1 1 :limit 3))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten-compound:code:nil")
+      (olc-shorten-compound nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten-compound:limit:nil")
+      (olc-shorten-compound "22222222+" :limit nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten-compound:limit:lo")
+      (olc-shorten-compound "22222222+" :limit 0))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten-compound:limit:hi")
+      (olc-shorten-compound "22222222+" :limit 19))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten-compound:limit:odd")
+      (olc-shorten-compound "22222222+" :limit 3))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-shorten-compound:zoom:nil")
+      (olc-shorten-compound "22222222+" :zoom nil))
+
+    (olctest-assert-error (:exp (args-out-of-range) :msg "olc-shorten-compound:zoom:lo")
+      (olc-shorten-compound "22222222+" :zoom 0))
+
+    (olctest-assert-error (:exp (args-out-of-range) :msg "olc-shorten-compound:zoom:hi")
+      (olc-shorten-compound "22222222+" :zoom 19))
+
+    (olctest-assert-error (:exp (args-out-of-range) :msg "olc-shorten-compound:zoom:llo")
+      (olc-shorten-compound "22222222+" :zoom '(0 8)))
+
+    (olctest-assert-error (:exp (args-out-of-range) :msg "olc-shorten-compound:zoom:rhi")
+      (olc-shorten-compound "22222222+" :zoom '(1 19)))
+
+    (olctest-assert-error (:exp (args-out-of-range) :msg "olc-shorten-compound:zoom:inv")
+      (olc-shorten-compound "22222222+" :zoom '(5 4)))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-recover:code")
+      (olc-recover nil 1 1))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-recover:lat")
+      (olc-recover "" nil 1))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-recover:lon")
+      (olc-recover "" 1 nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-recover:format")
+      (olc-recover "22222222+" 1 1 :format 'invalid))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-recover-compound:code")
+      (olc-recover-compound nil :ref "Stockholm"))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-recover-compound:ref:double")
+      (olc-recover-compound "2222+ Stockholm" :ref "Stockholm"))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-recover-compound:ref:nil")
+      (olc-recover-compound "2222+" :ref nil))
+
+    (olctest-assert-error (:exp (wrong-type-argument) :msg "olc-recover-compound:format")
+      (olc-recover-compound "2222+" :ref "Stockholm" :format 'invalid))
+
+    ))
+
+
+
 (defun olctest-issue-1 ()
   (olctest-testcase "local:issue-1"
     (olctest-assert-error (:exp (wrong-type-argument) :msg "F1")
@@ -310,6 +421,7 @@
        (olctest-validity)
        (olctest-localtests)
        (olctest-issue-3)
+       (olctest-issue-2)
        (olctest-issue-1)
        ))
 
