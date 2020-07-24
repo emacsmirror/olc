@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 David Byers
 ;;
 ;; Author: David Byers <david.byers@liu.se>
-;; Version: 1.1.0
+;; Version: 1.2.0
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: extensions, lisp
 ;; URL: https://gitlab.liu.se/davby02/olc
@@ -51,6 +51,13 @@
 (declare-function request "request")
 (declare-function request-response-status-code "request")
 (declare-function request-response-data "request")
+
+
+;;; Variables:
+
+
+(defvar olc-nominatim-url "https://nominatim.openstreetmap.org/"
+  "Base url for the nominatim endpoint.")
 
 
 ;;; Custom errors:
@@ -208,6 +215,13 @@ raise, and args for the raised error.
                 (throw 'result index))
               (setq index (1+ index)))
             code))))
+
+(defun olc-nominatim-endpoint (path)
+  "Build a complete url for nominatim endpoint PATH."
+  (concat olc-nominatim-url
+          (if (= ?/ (elt olc-nominatim-url (1- (length olc-nominatim-url))))
+              "" "/")
+          path))
 
 (defsubst olc-clip-latitude (lat)
   "Clip LAT to -90,90."
@@ -606,7 +620,7 @@ faster.
         (let* ((zoom (floor (+ zoom-lo zoom-hi) 2))
                (resp (request-response-data
                       (request
-                        "https://nominatim.openstreetmap.org/reverse"
+                        (olc-nominatim-endpoint "reverse")
                         :params `((lat . ,(olc-area-lat area))
                                   (lon . ,(olc-area-lon area))
                                   (zoom . ,zoom)
@@ -720,7 +734,7 @@ full open location code."
     ;; If the code is full then return it
     (if (olc-is-full code)
         (olc-recover code 0 0 :format format)
-      (let ((resp (request "https://nominatim.openstreetmap.org/search"
+      (let ((resp (request (olc-nominatim-endpoint "search")
                     :params `((q . ,ref)
                               (format . "json")
                               (limit . 1))
