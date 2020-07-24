@@ -48,4 +48,5 @@ test:
 		-l ../olc.el \
 		-l olctest.el \
 		-f olctest-batch-test \
+		$(TESTS) \
 		)
