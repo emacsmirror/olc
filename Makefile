@@ -49,4 +49,4 @@ test:
 		-l olctest.el \
 		-f olctest-batch-test \
 		$(TESTS) \
-		)
+		) && echo "All tests passed"

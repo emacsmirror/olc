@@ -488,13 +488,28 @@
                                   "22+" "Nowhere Special, Pitcairn")) :msg "R1")
       (olc-recover-compound "22+ Nowhere Special, Pitcairn"))
 
-    (olctest-expect-failure "R2"
-     (let ((olc-nominatim-url "https://invalid.domain/nominatim"))
-       (olctest-assert-error (:exp ((olc-recover-error-reference-search-failed
-                                     "22+" "Sweden")) :msg "R2")
-         (olc-recover-compound "22+ Sweden"))))
+    (let ((olc-nominatim-url "https://invalid.domain/nominatim"))
+      (olctest-assert-error (:exp ((olc-recover-error-reference-search-failed
+                                    "22+" "Sweden")) :msg "R2")
+        (olc-recover-compound "22+ Sweden")))
 
     ))
+
+(defun olctest-issue-5 ()
+  (olctest-testcase "issue-5"
+      (olctest-string= :exp "https://nominatim.openstreetmap.org/search"
+                       :act (olc-nominatim-endpoint "search")
+                       :msg "1")
+
+    (let ((olc-nominatim-url "https://nominatim.invalid"))
+      (olctest-string= :exp "https://nominatim.invalid/search"
+                       :act (olc-nominatim-endpoint "search")
+                       :msg "2"))
+
+    (let ((olc-nominatim-url "https://nominatim.invalid/"))
+      (olctest-string= :exp "https://nominatim.invalid/reverse"
+                       :act (olc-nominatim-endpoint "reverse")
+                       :msg "3"))))
 
 
 (defvar olctest-selected-tests)
@@ -515,6 +530,7 @@
          (run-test validity)
          (run-test localtests)
          (run-test errors)
+         (run-test issue-5)
          (run-test issue-3)
          (run-test issue-2)
          (run-test issue-1)
