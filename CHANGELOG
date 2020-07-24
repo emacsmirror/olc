@@ -1,3 +1,26 @@
+2020-07-24  David Byers  <david.byers@liu.se>
+
+	Fix issue #4:
+	* olc.el (olc-shorten-compound): Better handling of empty response
+	from nominatim.
+	(olc-recover-compound): Detect empty response from nominatim.
+	(olc-position-of): New function.
+	(olc-encode): Use cl-check-type to detect invalid encoding
+	lengths.
+	(general): Make errors more consistent.
+	(olc-shorten): Correctly signal shortcode and padded errors.
+	(olc-shorten-compound): Correctly signal shortcode and padded
+	errors.
+	(olc-parse-code): Match padding only at pos so parsing continues
+	if there are zeros later on in the code. The correct codes were
+	considred invalid, but we got the wrong errors.
+
+	* olc.texi (Errors): Document all the errors.
+
+	* test/olctest.el: Improved error-checking assertion. Added
+	support for expected failures.
+
+
 2020-07-23  David Byers  <david.byers@liu.se>
 
 	Fix issue #2:

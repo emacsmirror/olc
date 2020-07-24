@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 David Byers
 ;;
 ;; Author: David Byers <david.byers@liu.se>
-;; Version: 1.0.2
+;; Version: 1.1.0
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: extensions, lisp
 ;; URL: https://gitlab.liu.se/davby02/olc
@@ -56,17 +56,74 @@
 ;;; Custom errors:
 
 
-(define-error 'olc-error "Error in open location code.")
+(define-error 'olc-error "Open location code error")
+
 (define-error 'olc-parse-error
-  "Parse error in open location code" 'olc-error)
+  "Error parsing open location code" 'olc-error)
+
+(define-error 'olc-parse-error-unexpected-end
+  "Unexpected end parsing open location code"
+  'olc-parse-error)
+
+(define-error 'olc-parse-error-invalid-character
+  "Invalid character parsing open location code"
+  'olc-parse-error)
+
+(define-error 'olc-parse-error-missing-plus
+  "Missing plus sign parsing open location code"
+  'olc-parse-error)
+
+(define-error 'olc-parse-error-invalid-padding
+  "Invalid padding parsing open location code"
+  'olc-parse-error)
+
+(define-error 'olc-parse-error-padded-shortcode
+  "Padded  short code parsing open location code"
+  'olc-parse-error)
+
+(define-error 'olc-parse-error-digit-after-padding
+  "Unexpected digit after padding parsing open location code"
+  'olc-parse-error)
+
+(define-error 'olc-parse-error-empty-code
+  "Empty code when parsing open location code"
+  'olc-parse-error)
+
 (define-error 'olc-decode-error
-  "Error decoding open location code" 'olc-error)
-(define-error 'olc-encode-error
-  "Error encoding open location code" 'olc-error)
+  "Error decoding open location code"
+  'olc-error)
+
+(define-error 'olc-decode-error-shortcode
+  "Short codes must be recovered before decoding"
+  'olc-decode-error)
+
 (define-error 'olc-shorten-error
-  "Error shortening open location code" 'olc-error)
+  "Error shortening open location code."
+  'olc-error)
+
+(define-error 'olc-shorten-error-shortcode
+  "Code is already shortened"
+  'olc-shorten-error)
+
+(define-error 'olc-shorten-error-padded
+  "Unable to shorten padded codes"
+  'olc-shorten-error)
+
 (define-error 'olc-recover-error
-  "Error recovering open location code" 'olc-error)
+  "Error recovering open location code."
+  'olc-error)
+
+(define-error 'olc-recover-error-reference-search-failed
+  "Reference location search failed"
+  'olc-recover-error)
+
+(define-error 'olc-recover-error-reference-not-found
+  "Reference location not found"
+  'olc-recover-error)
+
+(define-error 'olc-recover-error-invalid-reference
+  "Invalid reference location"
+  'olc-recover-error)
 
 
 ;;; Base 20 digits:
@@ -137,10 +194,20 @@ SPEC is a list consisting of an error to catch, the error to
 raise, and args for the raised error.
 
 \(fn (CATCH SIGNAL &rest ARGS) BODY...)"
-  (declare (indent 1))
+  (declare (indent 1) (debug (listp &rest form)))
   `(condition-case nil
        ,@body
      (,(elt spec 0) (signal ',(elt spec 1) (list ,@(cddr spec))))))
+
+(defsubst olc-position-of (char code)
+  "Find the leftmost position of CHAR in CODE."
+  (let ((index 0))
+    (catch 'result
+      (mapc (lambda (letter)
+              (when (= char letter)
+                (throw 'result index))
+              (setq index (1+ index)))
+            code))))
 
 (defsubst olc-clip-latitude (lat)
   "Clip LAT to -90,90."
@@ -182,49 +249,50 @@ raise, and args for the raised error.
         (catch 'break
           (while (< pos (length code))
             (olc-transform-error
-                (args-out-of-range olc-parse-error
-                                   "code too short" code (1+ pos))
+                (args-out-of-range olc-parse-error-unexpected-end
+                                   code (1+ pos))
               (cond ((eq (elt code pos) ?+) (throw 'break nil))
                     ((eq (elt code pos) ?0) (throw 'break nil))
                     ((= (length pairs) 4) (throw 'break nil))
                     ((not (olc-valid-char (elt code pos)))
-                     (signal 'olc-parse-error
-                             (list "invalid character" pos code)))
+                     (signal 'olc-parse-error-invalid-character
+                             (list code pos (string (elt code pos)))))
                     ((not (olc-valid-char (elt code (1+ pos))))
-                     (signal 'olc-parse-error
-                             (list "invalid character" (1+ pos) code)))
+                     (signal 'olc-parse-error-invalid-character
+                             (list code (1+ pos)
+                                   (string (elt code (1+ pos))))))
                     (t (setq pairs (cons (cons (elt code pos)
                                                (elt code (1+ pos)))
                                          pairs)))))
             (setq pos (+ pos 2))))
 
         ;; Measure the padding
-        (when (string-match "0+" code pos)
+        (when (eq pos (string-match "0+" code pos))
           (setq pos (match-end 0)
                 padding (- (match-end 0) (match-beginning 0))))
 
         ;; Parse the separator
         (olc-transform-error
-            (args-out-of-range olc-parse-error
-                               "code too short" code pos)
+            (args-out-of-range olc-parse-error-unexpected-end
+                               code pos)
           (if (eq (elt code pos) ?+)
               (setq pos (1+ pos))
-            (signal 'olc-parse-error
-                    (list "missing separator" pos code))))
+            (signal 'olc-parse-error-missing-plus
+                    (list code pos))))
 
         ;; Check the length of the padding
         (unless (and (= (% padding 2) 0)
                      (<= (+ padding (* 2 (length pairs))) 8))
-          (signal 'olc-parse-error
-                  (list "incorrect padding length" pos code)))
+          (signal 'olc-parse-error-invalid-padding
+                  (list code pos)))
 
         ;; Determine if the code is shortened or not
         (setq short (< (+ (* 2 (length pairs)) padding) 8))
 
         ;; We cant be short and have padding (not sure why)
         (when (and short (> padding 0))
-          (signal 'olc-parse-error
-                  (list "padded codes can't be shortened" pos code)))
+          (signal 'olc-parse-error-padded-shortcode
+                  (list code pos)))
 
         ;; Determine the precision of the code
         (setq precision (- 8 padding))
@@ -232,32 +300,38 @@ raise, and args for the raised error.
         ;; Parse what's after the separator
         (when (< pos (length code))
           (when (> padding 0)
-            (signal 'olc-parse-error
-                    (list "padding followed by data" pos code)))
+            (signal 'olc-parse-error-digit-after-padding
+                    (list code pos (string (elt code pos)))))
 
           ;; Parse one more pair
-          (olc-transform-error
-              (args-out-of-range olc-parse-error
-                                 "code too short" code (1+ pos))
-            (setq pairs (cons (cons (elt code pos)
-                                    (elt code (1+ pos)))
-                              pairs)
-                  pos (+ 2 pos)
-                  precision (+ 2 precision)))
+          (olc-transform-error (args-out-of-range
+                                olc-parse-error-unexpected-end
+                                code (1+ pos))
+            (cond ((not (olc-valid-char (elt code pos)))
+                   (signal 'olc-parse-error-invalid-character
+                           (list code pos (string (elt code pos)))))
+                  ((not (olc-valid-char (elt code (1+ pos))))
+                   (signal 'olc-parse-error-invalid-character
+                           (list code (1+ pos) (string (elt code (1+ pos))))))
+                  (t (setq pairs (cons (cons (elt code pos)
+                                             (elt code (1+ pos)))
+                                       pairs)
+                           pos (+ 2 pos)
+                           precision (+ 2 precision))))))
 
           ;; Parse grid
           (while (< pos (length code))
             (cond ((not (olc-valid-char (elt code pos)))
-                   (signal 'olc-parse-error
-                           (list "invalid character" pos code)))
+                   (signal 'olc-parse-error-invalid-character
+                           (list code pos (string (elt code pos)))))
                   ((>= (length grid) 5) (setq pos (1+ pos)))
                   (t (setq grid (cons (elt code pos) grid)
                            pos (1+ pos)
-                           precision (1+ precision))))))
+                           precision (1+ precision)))))
 
         ;; Check for an empty code
         (unless pairs
-          (signal 'olc-parse-error (list "invalid code" 0 code)))
+          (signal 'olc-parse-error-empty-code (list code 0)))
 
         ;; Return the result
         (olc-parse-create :pairs (nreverse pairs)
@@ -339,19 +413,14 @@ invalid."
 (cl-defun olc-encode (lat lon &key (len 10))
   "Encode LAT and LON as a LEN length open location code.
 
-LEN is automatically clipped to between 2 and 15.
-`olc-encode-error' is raised if it is otherwise invalid (i.e. 3,
-5, 7, or 9). If LEN is not specified, it defaults to 10.
-
-Returns an olc-area structure. Raises olc-encode-error if the
-values cannot (legally) be encoded to the selected length."
+LEN is automatically clipped to between 2 and 15. Invalid values
+raise an error."
   (cl-check-type lat number)
   (cl-check-type lon number)
   (cl-check-type len integer)
 
   (setq len (max 2 (min 15 len)))
-  (when (and (< len 11) (/= (% len 2) 0))
-    (signal 'olc-encode-error "invalid encoding length"))
+  (cl-check-type len (member 2 4 6 8 10 11 12 13 14 15))
 
   (setq lat (olc-normalize-latitude lat len)
         lon (olc-normalize-longitude lon))
@@ -413,7 +482,7 @@ differences, however, are extremely small."
 
     ;; We only deal with long codes
     (when (olc-parse-short parse)
-      (signal 'olc-decode-error code))
+      (signal 'olc-decode-error-shortcode (list code)))
 
     ;; Process the pairs
     (mapc (lambda (pair)
@@ -454,14 +523,15 @@ shortened code, of if LIMIT is not positive and even."
   (cl-check-type lon number)
   (cl-check-type limit (member 2 4 6 8 10 12))
 
+  (when (olc-is-short code)
+    (signal 'olc-shorten-error-shortcode
+            (list code)))
+
   (let* ((parse (olc-parse-code code))
          (area (olc-decode parse)))
-    (when (olc-is-short parse)
-      (signal 'olc-shorten-error
-              (list "can't shorten shortened codes" code)))
     (when (< (olc-parse-precision parse) 8)
-      (signal 'olc-shorten-error
-              (list "can't shorten padded codes" code)))
+      (signal 'olc-shorten-error-padded
+              (list code)))
 
     (setq lat (olc-clip-latitude lat)
           lon (olc-normalize-longitude lon))
@@ -503,64 +573,75 @@ faster.
   (cl-check-type limit (member 2 4 6 8 10 12))
   (cl-check-type zoom (or integer listp))
 
-  (save-match-data
-    (let* ((area (olc-decode code))
-           (zoom-lo (cond ((numberp zoom) zoom)
-                          ((listp zoom) (elt zoom 0))
-                          (t (signal 'args-out-of-range zoom))))
-           (zoom-hi (cond ((numberp zoom) zoom)
-                          ((listp zoom) (elt zoom 1))
-                          (t (signal 'args-out-of-range zoom))))
-           result)
+  (when (olc-is-short code)
+    (signal 'olc-shorten-error-shortcode
+            (list code)))
 
-      ;; Check that zoom range is not inverted
-      (when (or (< zoom-hi zoom-lo)
-                (< zoom-hi 1) (> zoom-hi 18)
-                (< zoom-lo 1) (> zoom-lo 18))
-        (signal 'args-out-of-range zoom))
+  (let* ((parse (olc-parse-code code))
+         (area (olc-decode code))
+         (zoom-lo (cond ((numberp zoom) zoom)
+                        ((listp zoom) (elt zoom 0))
+                        (t (signal 'args-out-of-range (list '(1 18) zoom)))))
+         (zoom-hi (cond ((numberp zoom) zoom)
+                        ((listp zoom) (elt zoom 1))
+                        (t (signal 'args-out-of-range (list '(1 18) zoom)))))
+         result)
 
-      ;; Otherwise we may never hit the high limit
-      (setq zoom-hi (1+ zoom-hi))
+    ;; Check for padding
+    (when (< (olc-parse-precision parse) 8)
+      (signal 'olc-shorten-error-padded
+              (list code)))
 
-      (catch 'result
-        (while (< zoom-lo zoom-hi)
-          (let* ((zoom (floor (+ zoom-lo zoom-hi) 2))
-                 (resp (request-response-data
-                        (request
-                          "https://nominatim.openstreetmap.org/reverse"
-                          :params `((lat . ,(olc-area-lat area))
-                                    (lon . ,(olc-area-lon area))
-                                    (zoom . ,zoom)
-                                    (format . "json"))
-                          :parser #'json-read
-                          :sync t)))
-                 (tmp-code
-                  (when resp
-                    (olc-shorten code
-                                 (string-to-number
-                                  (alist-get 'lat resp))
-                                 (string-to-number
-                                  (alist-get 'lon resp))
-                                 :limit limit)))
-                 (padlen (when (string-match "+" tmp-code)
-                           (- 8 (match-beginning 0)))))
+    ;; Check that zoom range is not inverted
+    (when (or (< zoom-hi zoom-lo)
+              (< zoom-hi 1) (> zoom-hi 18)
+              (< zoom-lo 1) (> zoom-lo 18))
+      (signal 'args-out-of-range (list '(1 18) zoom)))
+
+    ;; Otherwise we may never hit the high limit
+    (setq zoom-hi (1+ zoom-hi))
+
+    (catch 'result
+      (while (< zoom-lo zoom-hi)
+        (let* ((zoom (floor (+ zoom-lo zoom-hi) 2))
+               (resp (request-response-data
+                      (request
+                        "https://nominatim.openstreetmap.org/reverse"
+                        :params `((lat . ,(olc-area-lat area))
+                                  (lon . ,(olc-area-lon area))
+                                  (zoom . ,zoom)
+                                  (format . "json"))
+                        :parser #'json-read
+                        :sync t)))
+               (tmp-code
+                (when resp
+                  (olc-shorten code
+                               (string-to-number (alist-get 'lat resp))
+                               (string-to-number (alist-get 'lon resp))
+                               :limit limit)))
+               (padlen
+                (when tmp-code (- 8 (olc-position-of ?+ tmp-code)))))
+
+          ;; If resp is nil, then there's no point in going further
+
+          (if (null resp)
+              (setq zoom-lo zoom-hi)
 
             ;; Keep the shortest code we see that has at most limit
             ;; chars removed
+
             (when (and (<= padlen limit)
                        (or (null result)
                            (< (length tmp-code) (length (car result)))))
-              (setq result (cons tmp-code
-                                 (alist-get 'display_name resp))))
+              (setq result (cons tmp-code (alist-get 'display_name resp))))
 
             ;; Zoom in or out
             (if (< padlen limit)
                 (setq zoom-lo (1+ zoom))
-              (setq zoom-hi zoom))))
-        (if (and result (> 8 (progn (string-match "+" (car result))
-                                    (match-end 0))))
-            (concat (car result) " " (cdr result))
-          code)))))
+              (setq zoom-hi zoom)))))
+      (if (and result (< (olc-position-of ?+ (car result)) 8))
+          (concat (car result) " " (cdr result))
+        code))))
 
 
 (cl-defun olc-recover (code lat lon &key (format 'area))
@@ -622,7 +703,7 @@ If FORMAT is `area' (or any other value), the returned value is an
 full open location code."
   ;; Make sure we can do requests
   (save-match-data
-    (unless (fboundp 'request) (signal 'void-function  'request))
+    (unless (fboundp 'request) (signal 'void-function '(request)))
 
     ;; Check types (defer check of ref)
     (cl-check-type code stringp)
@@ -648,9 +729,12 @@ full open location code."
 
         ;; Check that we got a response
         (unless (eq 200 (request-response-status-code resp))
-          (signal 'olc-recover-error
-                  (list "error decoding reference"
-                        (request-response-status-code resp))))
+          (signal 'olc-recover-error-reference-search-failed
+                  (list code ref)))
+
+        (unless (> (length (request-response-data resp)) 0)
+          (signal 'olc-recover-error-reference-not-found
+                  (list code ref)))
 
         (let* ((data (elt (request-response-data resp) 0))
                (lat (alist-get 'lat data))
@@ -658,9 +742,8 @@ full open location code."
 
           ;; Check that we have a lat and lon
           (unless (and lat lon)
-            (signal 'olc-recover-error
-                    (list "reference location missing lat or lon"
-                          data)))
+            (signal 'olc-recover-error-invalid-reference
+                    (list code ref)))
 
           ;; Finally recover the code!
           (olc-recover code
