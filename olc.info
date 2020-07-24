@@ -22,11 +22,12 @@ languages, see https://github.com/google/open-location-code.
 * Menu:
 
 * Data types::  Data types defined by olc.
+* Errors::      Errors raised by olc.
 * Functions::   Functions defined by olc.
 * Index::       Type and function index.
 
 
-File: olc.info,  Node: Data types,  Next: Functions,  Prev: Top,  Up: Top
+File: olc.info,  Node: Data types,  Next: Errors,  Prev: Top,  Up: Top
 
 Data types
 **********
@@ -107,7 +108,101 @@ The olc-parse is a structure mainly used internally.  Unless you call
      shortened, but don’t count on this.
 
 
-File: olc.info,  Node: Functions,  Prev: Data types,  Up: Top
+File: olc.info,  Node: Errors,  Next: Functions,  Prev: Data types,  Up: Top
+
+Errors
+======
+
+‘olc-error’
+     The message is ‘Open location code error’.  This is the parent of
+     all errors in olc.
+
+‘olc-parse-error’
+     The message is ‘Error parsing open location code’.  This is the
+     parent of the various parse errors.  All parse errors have the same
+     associated data: (CODE POS DATA...), where POS is the approximate
+     position of the parse error, CODE is the code being parsed, and
+     DATA depends on the error.
+
+‘olc-parse-error-unexpected-end’
+     The message is ‘Unexpected end parsing open location code’.  Raised
+     when the code is incomplete.
+
+‘olc-parse-error-invalid-character’
+     The message is ‘Invalid character parsing open location code’.
+     Raised when an invalid character is encountered.  DATA is a string
+     containing the invalid character.
+
+‘olc-parse-error-missing-plus’
+     The message is ‘Missing plus sign parsing open location code’.
+     Raised when the plus sign is missing.
+
+‘olc-parse-error-invalid-padding’
+     The message is ‘Invalid padding parsing open location code’.
+     Raised when the padding is invalid (e.g.  odd in length).
+
+‘olc-parse-error-padded-shortcode’
+     The message is ‘Padded short code parsing open location code’.
+     Raised when parsing a code with padding that has been shortened.
+
+‘olc-parse-error-digit-after-padding’
+     The message is ‘Unexpected digit after padding parsing open
+     location code’.  Raised when an unexpected digit is encountered
+     (e.g.  after padding).
+
+‘olc-parse-error-empty-code’
+     The message is ‘Empty code when parsing open location code’.
+     Raised when the code is empty (i.e.  ‘+’).
+
+‘olc-decode-error’
+     The message is ‘Error decoding open location code’.  The associated
+     data is a list containing the code being decoded as its first
+     element.  This is the parent of the various decoding errors raised
+     by ‘olc-decode’.
+
+‘olc-decode-error-shortcode’
+     The message is ‘Short codes must be recovered before decoding’.
+     This is raised when an attempt is made to decode a shortened code.
+
+‘olc-shorten-error’
+     The message is ‘Error shortening open location code’.  The
+     associated data is a list containing the code being decoded as its
+     first element.  This is the parent of the various shortening errors
+     raised by ‘olc-shorten’ and ‘olc-shorten-compound’.
+
+‘olc-shorten-error-shortcode’
+     The message is ‘Code is already shortened’.  Raised when attempting
+     to shorten a shortened code.
+
+‘olc-shorten-error-padding’
+     The message is ‘Unable to shorten padded codes’.  Raised when
+     attempting to shorten a code with padding.
+
+‘olc-recover-error’
+     The message is ‘Error recovering open location code’.  The
+     associated data depends on the exact code, but is always a list
+     with the code being recovered as its first element.  This is the
+     parent of the various recovery errors raised by ‘olc-recover’ and
+     ‘olc-recover-compound’.
+
+‘olc-recover-error-geocoding-request’
+     The messags is ‘Reference location search failed’.  Raised when
+     geographical search fails due to an error at the HTTP layer.  The
+     associated data is (CODE, REF) where REF is the reference being
+     searched.
+
+‘olc-recover-error-geocoding-not-found’
+     The messags is ‘Reference location not found’.  Raised when
+     geographical search returns no result.  The associated data is
+     (CODE, REF) where REF is the reference being searched.
+
+‘olc-recover-error-geocoding-invalid’
+     The messags is ‘Invalid reference location’.  Raised when
+     geographical search returns an invalid result.  The associated data
+     is (CODE, REF) where REF is the reference being searched.
+
+
+File: olc.info,  Node: Functions,  Next: Index,  Prev: Errors,  Up: Top
 
 Functions
 =========
@@ -264,11 +359,12 @@ Index
 
 Tag Table:
 Node: Top67
-Node: Data types861
-Node: olc-area1242
-Node: olc-parse2170
-Node: Functions3400
-Node: Index8754
+Node: Data types899
+Node: olc-area1277
+Node: olc-parse2205
+Node: Errors3435
+Node: Functions7375
+Node: Index12739
 
 End Tag Table
 

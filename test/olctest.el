@@ -35,7 +35,7 @@
          (--olctest-current-case ,name))
      (message "olctest running %s" ,name)
      ,@body
-     (olctest-report-results --olctest-results)))
+     (olctest-report-results (reverse --olctest-results))))
 
 
 (cl-defun olctest-record-failure (&key exp act msg)
@@ -46,6 +46,14 @@
                 (exp . ,exp)
                 (act . ,act))
               --olctest-results)))
+
+(defmacro olctest-expect-failure (name &rest body)
+  "Expect a failure."
+  (declare (indent 1) (debug (form &rest form)))
+  `(unless (let ((--olctest-results nil))
+             ,@body
+             --olctest-results)
+     (olctest-record-failure :exp 'failure :act 'success :msg ,name)))
 
 (defun olctest-report-results (results)
   "Report results from tests."
@@ -74,7 +82,13 @@
   (declare (indent 1))
   `(when (condition-case --olctest-caught-error
              (progn ,@body t)
-           (,exp nil)
+           ,@(mapcar (lambda (spec)
+                       (cond ((symbolp spec) `(,spec nil))
+                             ((listp spec)
+                              `(,(car spec)
+                                (olctest-equal :exp ',spec :act --olctest-caught-error) nil))
+                             (t (error "invalid olctest error specification"))))
+                     exp)
            (error (olctest-record-failure :exp ',exp :act --olctest-caught-error :msg ,msg) nil))
      (olctest-record-failure :exp ',exp :act 'noerror :msg ,msg)))
 
@@ -244,7 +258,11 @@
              (len (alist-get 'len case))
              (shortcode (alist-get 'exp case))
              (actual (olc-shorten fullcode lat lon :limit len)))
-        (olctest-string= :exp shortcode :act actual :msg len)))))
+        (olctest-string= :exp shortcode :act actual :msg len)))
+
+    (olctest-equal :act (olc-shorten-compound "546FWWM2+F6")
+                   :exp "WWM2+F6 Adamstown, Pitcairn")
+    ))
 
 
 (defun olctest-issue-3 ()
@@ -413,16 +431,94 @@
     ))
 
 
+(defun olctest-errors ()
+  (olctest-testcase "local:errors"
+    (olctest-assert-error (:exp ((olc-parse-error-unexpected-end "22" 2)) :msg "P1")
+      (olc-parse-code "22"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-invalid-character "O2+" 0 "O")) :msg "P2")
+      (olc-parse-code "O2+"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-invalid-character "2O+" 1 "O")) :msg "P3")
+      (olc-parse-code "2O+"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-invalid-character "20+" 1 "0")) :msg "P4")
+      (olc-parse-code "20+"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-unexpected-end "FFFFFFFF" 8)) :msg "P5")
+      (olc-parse-code "FFFFFFFF"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-missing-plus "FFFFFFFFF" 8)) :msg "P6")
+      (olc-parse-code "FFFFFFFFF"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-padded-shortcode "FF0000+" 7)) :msg "P7")
+      (olc-parse-code "FF0000+"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-invalid-padding "FF00000+" 8)) :msg "P8")
+      (olc-parse-code "FF00000+"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-digit-after-padding "FF000000+FF" 9 "F")) :msg "P9")
+      (olc-parse-code "FF000000+FF"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-unexpected-end "FFFFFFFF+F" 10)) :msg "P10")
+      (olc-parse-code "FFFFFFFF+F"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-invalid-character "FFFFFFFF+F0" 10 "0")) :msg "P11")
+      (olc-parse-code "FFFFFFFF+F0"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-invalid-character "FFFFFFFF+FF0" 11 "0")) :msg "P12")
+      (olc-parse-code "FFFFFFFF+FF0"))
+
+    (olctest-assert-error (:exp ((olc-parse-error-empty-code "+" 0)) :msg "P13")
+      (olc-parse-code "+"))
+
+    (olctest-assert-error (:exp ((olc-decode-error-shortcode "22+")) :msg "D1")
+      (olc-decode "22+"))
+
+    (olctest-assert-error (:exp ((olc-shorten-error-padded "22222200+")) :msg "S1")
+      (olc-shorten "22222200+" 0 0))
+
+    (olctest-assert-error (:exp ((olc-shorten-error-shortcode "22+")) :msg "S2")
+      (olc-shorten-compound "22+"))
+
+    (olctest-assert-error (:exp ((olc-shorten-error-padded "FFFFFF00+")) :msg "S3")
+      (olc-shorten-compound "FFFFFF00+"))
+
+    (olctest-assert-error (:exp ((olc-recover-error-reference-not-found
+                                  "22+" "Nowhere Special, Pitcairn")) :msg "R1")
+      (olc-recover-compound "22+ Nowhere Special, Pitcairn"))
+
+    (olctest-expect-failure "R2"
+     (let ((olc-nominatim-url "https://invalid.domain/nominatim"))
+       (olctest-assert-error (:exp ((olc-recover-error-reference-search-failed
+                                     "22+" "Sweden")) :msg "R2")
+         (olc-recover-compound "22+ Sweden"))))
+
+    ))
+
+
+(defvar olctest-selected-tests)
+
+(defmacro run-test (arg)
+  `(if (or (null (ignore-errors olctest-selected-tests))
+           (memq ',arg olctest-selected-tests))
+       (funcall (intern (concat "olctest-" (symbol-name ',arg))))
+     t))
+
 (defun olctest-run-all ()
   "Run all tests."
-  (and (olctest-decode)
-       (olctest-encode)
-       (olctest-shortcodes)
-       (olctest-validity)
-       (olctest-localtests)
-       (olctest-issue-3)
-       (olctest-issue-2)
-       (olctest-issue-1)
+  (let ((olctest-selected-tests
+         (mapcar 'intern command-line-args-left)))
+    (and (run-test decode)
+         (run-test encode)
+         (run-test shortcodes)
+         (run-test validity)
+         (run-test localtests)
+         (run-test errors)
+         (run-test issue-3)
+         (run-test issue-2)
+         (run-test issue-1)
+         )
        ))
 
 (defun olctest-batch-test ()
@@ -431,3 +527,4 @@
            (olctest-run-all)
          (error (message (format "error: %s %s" (car err) (cdr err))) nil))
        0 1)))
+

@@ -26,11 +26,12 @@ languages, see https://github.com/google/open-location-code.
 
 @menu
 * Data types::  Data types defined by olc.
+* Errors::      Errors raised by olc.
 * Functions::   Functions defined by olc.
 * Index::       Type and function index.
 @end menu
 
-@node Data types,Functions,,Top
+@node Data types,Errors,,Top
 @unnumbered Data types
 
 olc defines two data types: olc-area and olc-parse. The former
@@ -117,7 +118,105 @@ but don't count on this.
 @end defun
 
 
-@node Functions,,Data types,Top
+@node Errors,Functions,Data types,Top
+@unnumberedsec Errors
+
+@table @code
+@item olc-error
+The message is @samp{Open location code error}. This is the parent of
+all errors in olc.
+
+@item olc-parse-error
+The message is @samp{Error parsing open location code}. This is the
+parent of the various parse errors. All parse errors have the same
+associated data: (@var{code} @var{pos} @var{data}...), where @var{pos}
+is the approximate position of the parse error, @var{code} is the
+code being parsed, and @var{data} depends on the error.
+
+@item olc-parse-error-unexpected-end
+The message is @samp{Unexpected end parsing open location
+code}. Raised when the code is incomplete.
+
+@item olc-parse-error-invalid-character
+The message is @samp{Invalid character parsing open location
+code}. Raised when an invalid character is encountered. @var{data} is
+a string containing the invalid character.
+
+@item olc-parse-error-missing-plus
+The message is @samp{Missing plus sign parsing open location
+code}. Raised when the plus sign is missing.
+
+@item olc-parse-error-invalid-padding
+The message is @samp{Invalid padding parsing open location
+code}. Raised when the padding is invalid (e.g. odd in length).
+
+@item olc-parse-error-padded-shortcode
+The message is @samp{Padded short code parsing open location
+code}. Raised when parsing a code with padding that has been
+shortened.
+
+@item olc-parse-error-digit-after-padding
+The message is @samp{Unexpected digit after padding parsing open
+location code}. Raised when an unexpected digit is encountered
+(e.g. after padding).
+
+@item olc-parse-error-empty-code
+The message is @samp{Empty code when parsing open location
+code}. Raised when the code is empty (i.e. @samp{+}).
+
+@item olc-decode-error
+The message is @samp{Error decoding open location code}. The
+associated data is a list containing the code being decoded as its
+first element. This is the parent of the various decoding errors
+raised by @code{olc-decode}.
+
+@item olc-decode-error-shortcode
+The message is @samp{Short codes must be recovered before
+decoding}. This is raised when an attempt is made to decode a
+shortened code.
+
+@item olc-shorten-error
+The message is @samp{Error shortening open location code}. The
+associated data is a list containing the code being decoded as its
+first element. This is the parent of the various shortening errors
+raised by @code{olc-shorten} and @code{olc-shorten-compound}.
+
+@item olc-shorten-error-shortcode
+The message is @samp{Code is already shortened}. Raised when
+attempting to shorten a shortened code.
+
+@item olc-shorten-error-padding
+The message is @samp{Unable to shorten padded codes}. Raised when
+attempting to shorten a code with padding.
+
+@item olc-recover-error
+The message is @samp{Error recovering open location code}. The
+associated data depends on the exact code, but is always a list with
+the code being recovered as its first element. This is the parent of
+the various recovery errors raised by @code{olc-recover} and
+@code{olc-recover-compound}.
+
+@item olc-recover-error-geocoding-request
+The messags is @samp{Reference location search failed}. Raised when
+geographical search fails due to an error at the HTTP layer. The
+associated data is (@var{code}, @var{ref}) where @var{ref} is the
+reference being searched.
+
+@item olc-recover-error-geocoding-not-found
+The messags is @samp{Reference location not found}. Raised when
+geographical search returns no result. The associated data is
+(@var{code}, @var{ref}) where @var{ref} is the reference being
+searched.
+
+@item olc-recover-error-geocoding-invalid
+The messags is @samp{Invalid reference location}. Raised when
+geographical search returns an invalid result. The associated data is
+(@var{code}, @var{ref}) where @var{ref} is the reference being
+searched.
+
+@end table
+
+@node Functions,Index,Errors,Top
 @unnumberedsec Functions
 
 @defun olc-encode lat lon &key length
