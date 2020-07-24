@@ -497,10 +497,13 @@
     ))
 
 
+(defvar olctest-selected-tests)
+
 (defmacro run-test (arg)
-  `(or (null (ignore-errors olctest-selected-tests))
-       (not (memq ',arg olctest-selected-tests))
-       (funcall (intern (concat "olctest-" (symbol-name ',arg))))))
+  `(if (or (null (ignore-errors olctest-selected-tests))
+           (memq ',arg olctest-selected-tests))
+       (funcall (intern (concat "olctest-" (symbol-name ',arg))))
+     t))
 
 (defun olctest-run-all ()
   "Run all tests."
