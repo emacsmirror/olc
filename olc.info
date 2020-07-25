@@ -312,16 +312,25 @@ Functions
      coordinates.  Please make sure you follow the acceptable use policy
      for the API (e.g., one request per second, tops, allowed).
 
- -- Function: olc-is-valid code
-     Returns non-‘nil’ if CODE is a valid open location code.
+ -- Function: olc-is-valid code &key compound
+     Returns non-‘nil’ if CODE is a valid open location code.  If
+     COMPOUND is non-nil, then check only up to the first space
+     character so non-nil is returned for strings that look like
+     compound codes.
 
- -- Function: olc-is-short code
-     Returns non-‘nil’ if CODE is a valid short location code.  Returns
-     ‘nil’ for valid short and for invalid codes.
+ -- Function: olc-is-short code &key compound
+     Returns non-‘nil’ if CODE is a valid short location code.  If
+     COMPOUND is non-nil, then check only up to the first space
+     character so non-nil is returned for strings that look like
+     compound codes.  Returns ‘nil’ for valid full and for invalid
+     codes.
 
- -- Function: olc-is-full code
-     Returns non-‘nil’ if CODE is a valid full open location code.
-     Returns ‘nil’ for valid long and for invalid codes.
+ -- Function: olc-is-full code &key compound
+     Returns non-‘nil’ if CODE is a valid full open location code.  If
+     COMPOUND is non-nil, then check only up to the first space
+     character so non-nil is returned for strings that look like
+     compound codes.  Returns ‘nil’ for valid short and for invalid
+     codes.
 
 
 File: olc.info,  Node: Index,  Prev: Functions,  Up: Top
@@ -342,8 +351,8 @@ Index
 * olc-area-p:                            olc-area.            (line  13)
 * olc-decode:                            Functions.           (line  21)
 * olc-encode:                            Functions.           (line   6)
-* olc-is-full:                           Functions.           (line 118)
-* olc-is-short:                          Functions.           (line 114)
+* olc-is-full:                           Functions.           (line 124)
+* olc-is-short:                          Functions.           (line 117)
 * olc-is-valid:                          Functions.           (line 111)
 * olc-parse-create:                      olc-parse.           (line   9)
 * olc-parse-grid:                        olc-parse.           (line  18)
@@ -364,7 +373,7 @@ Node: olc-area1277
 Node: olc-parse2205
 Node: Errors3435
 Node: Functions7375
-Node: Index12739
+Node: Index13244
 
 End Tag Table
 

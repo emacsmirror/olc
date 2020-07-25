@@ -354,18 +354,26 @@ coordinates. Please make sure you follow the acceptable use policy for
 the API (e.g., one request per second, tops, allowed).
 @end defun
 
-@defun olc-is-valid code
-Returns non-@code{nil} if @var{code} is a valid open location code.
+@defun olc-is-valid code &key compound
+Returns non-@code{nil} if @var{code} is a valid open location code. If
+@var{compound} is non-nil, then check only up to the first space
+character so non-nil is returned for strings that look like compound
+codes.
 @end defun
 
-@defun olc-is-short code
+@defun olc-is-short code &key compound
 Returns non-@code{nil} if @var{code} is a valid short location code.
-Returns @code{nil} for valid short and for invalid codes.
+If @var{compound} is non-nil, then check only up to the first space
+character so non-nil is returned for strings that look like compound
+codes. Returns @code{nil} for valid full and for invalid codes.
 @end defun
 
-@defun olc-is-full code
+@defun olc-is-full code &key compound
 Returns non-@code{nil} if @var{code} is a valid full open location
-code. Returns @code{nil} for valid long and for invalid codes.
+code. If @var{compound} is non-nil, then check only up to the first
+space character so non-nil is returned for strings that look like
+compound codes. Returns @code{nil} for valid short and for invalid
+codes.
 @end defun
 
 

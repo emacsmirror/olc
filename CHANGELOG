@@ -1,3 +1,14 @@
+2020-07-25  David Byers  <david.byers@liu.se>
+
+	Fix issue #6:
+	* olc.texi (Functions): Document "compound". Correct error in
+	documentation of return value for olc-is-full and olc-is-short.
+
+	* olc.el (olc-parse-code): Document that match data is changed.
+	(olc-is-valid): Added the "compound" keyword arg.
+	(olc-is-full): Added the "compound" keyword arg.
+	(olc-is-short): Added the "compound" keyword arg.
+
 2020-07-24  David Byers  <david.byers@liu.se>
 
 	Fix issue #4:
