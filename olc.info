@@ -229,12 +229,18 @@ Functions
      (e.g.  a padded shortened code, a padded code with grid
      coordinates, an empty code, and so forth).
 
+     If FORMAT is ‘area’ (the default), the returned value is an full
+     open location code.  If FORMAT is ‘latlon’ it is a list (LATITUDE
+     LONGITUDE) representing the center of the location.
+
           (olc-decode "9FCQ9HXG+4CG")
           ⇒ #s(olc-area 58.397800000000004 15.5760625 58.397825000000005 15.57609375)
           (olc-area-lat (olc-decode "9FCQ9HXG+4CG"))
           ⇒ 58.3978125
           (olc-area-lon (olc-decode "9FCQ9HXG+4CG"))
           ⇒ 15.576078125
+          (olc-decode "9FCQ9HXG+4CG" :format 'latlon)
+          ⇒ (58.3978125 15.576078125)
 
  -- Function: olc-shorten code lat lon &key limit
      Shorten CODE, which must be a full open location code, using
@@ -251,15 +257,15 @@ Functions
 
  -- Function: olc-shorten-compound code &key limit
      Shorten CODE, which must be a full open location code, finding a
-     reference near the encoded location.  If LIMIT is non-nil, then the
-     code will be shortened by at most that many digits.  If the code
-     can’t be shortened, the original code is returned.
+     reference near the encoded location.  If LIMIT is non-‘nil’, then
+     the code will be shortened by at most that many digits.  If the
+     code can’t be shortened, the original code is returned.
 
-     If ZOOM is non-nil, then limit references to that zoom level.  The
-     default is 8 and the maximum is 18.  Higher zoom levels yield more
-     precise but longer references.  Lower zoom levels yield simpler
-     references but longer codes.  The default seems to usually produce
-     codes with four characters before the plus sign.
+     If ZOOM is non-‘nil’, then limit references to that zoom level.
+     The default is 8 and the maximum is 18.  Higher zoom levels yield
+     more precise but longer references.  Lower zoom levels yield
+     simpler references but longer codes.  The default seems to usually
+     produce codes with four characters before the plus sign.
 
      ‘olc-shorten-error’ is raised if CODE is a padded or shortened
      code, of if LIMIT is not even.
@@ -277,35 +283,35 @@ Functions
      Recover the closest point to coordinates LAT and LON with a code
      that can be shortened to CODE.  If FORMAT is ‘latlon’, then the
      center of the recovered area (LATITUDE .  LONGITUDE) is returned.
-     If FORMAT is ‘area’ (or any other value), the returned value is an
-     full open location code.
+
+     If FORMAT is ‘area’ (the default), the returned value is an full
+     open location code.  If FORMAT is ‘latlon’ it is a list (LATITUDE
+     LONGITUDE) representing the center of the location.
 
           (olc-recover "+2VX" 51.3701125 -1.217765625)
           ⇒ "9C3W9QCJ+2VX"
           (olc-recover "+2VX" 51.3701125 -1.217765625 :format 'latlon)
-          ⇒ (51.370112500000005 . -1.2177656250000002)
+          ⇒ (51.370112500000005 -1.2177656250000002)
 
- -- Function: olc-recover-compound arg1 &optional arg2 &key format
+ -- Function: olc-recover-compound code &key ref format
      Recover a shortened code without the reference latitude and
      longitude.
 
-     When called with one argument, it must be a string consisting of a
-     shortened open location code followed by whitespace and a
-     geographical location.
+     CODE is the (shortened) code to decode.  REF is either ‘nil’ or the
+     geographical reference to use instead of latitude and longitude.
+     If REF is ‘nil’, then CODE must end with the geographical
+     reference, separated from the code by whitespace.
 
-     When called with two strings, the first must be a shortened open
-     location code and the second if the geographical location.
-
-     Optionally, the last argument in either case can be a symbol
-     indicating the format of the return value (see ‘olc-recover’ for
-     details).
+     If FORMAT is ‘area’ (the default), the returned value is an full
+     open location code.  If FORMAT is ‘latlon’ it is a list (LATITUDE
+     LONGITUDE) representing the center of the location.
 
           (olc-recover-compound "M24Q+89 Mutitjulu")
           ⇒ "5Q6HM24Q+89"
           (olc-recover-compound "M24Q+89" "Mutitjulu")
           ⇒ "5Q6HM24Q+89"
           (olc-recover-compound "M24Q+89" "Mutitjulu" :format 'latlon)
-          ⇒ (-25.344187500000004 . 131.0384375)
+          ⇒ (-25.344187500000004 131.0384375)
 
      This function requires the ‘request’ package to be installed, and
      uses the OpenStreetMap API to convert the geographical reference to
@@ -314,21 +320,21 @@ Functions
 
  -- Function: olc-is-valid code &key compound
      Returns non-‘nil’ if CODE is a valid open location code.  If
-     COMPOUND is non-nil, then check only up to the first space
-     character so non-nil is returned for strings that look like
+     COMPOUND is non-‘nil’, then check only up to the first space
+     character so non-‘nil’ is returned for strings that look like
      compound codes.
 
  -- Function: olc-is-short code &key compound
      Returns non-‘nil’ if CODE is a valid short location code.  If
-     COMPOUND is non-nil, then check only up to the first space
-     character so non-nil is returned for strings that look like
+     COMPOUND is non-‘nil’, then check only up to the first space
+     character so non-‘nil’ is returned for strings that look like
      compound codes.  Returns ‘nil’ for valid full and for invalid
      codes.
 
  -- Function: olc-is-full code &key compound
      Returns non-‘nil’ if CODE is a valid full open location code.  If
-     COMPOUND is non-nil, then check only up to the first space
-     character so non-nil is returned for strings that look like
+     COMPOUND is non-‘nil’, then check only up to the first space
+     character so non-‘nil’ is returned for strings that look like
      compound codes.  Returns ‘nil’ for valid short and for invalid
      codes.
 
@@ -351,18 +357,18 @@ Index
 * olc-area-p:                            olc-area.            (line  13)
 * olc-decode:                            Functions.           (line  21)
 * olc-encode:                            Functions.           (line   6)
-* olc-is-full:                           Functions.           (line 124)
-* olc-is-short:                          Functions.           (line 117)
-* olc-is-valid:                          Functions.           (line 111)
+* olc-is-full:                           Functions.           (line 130)
+* olc-is-short:                          Functions.           (line 123)
+* olc-is-valid:                          Functions.           (line 117)
 * olc-parse-create:                      olc-parse.           (line   9)
 * olc-parse-grid:                        olc-parse.           (line  18)
 * olc-parse-pairs:                       olc-parse.           (line  13)
 * olc-parse-precision:                   olc-parse.           (line  25)
 * olc-parse-short:                       olc-parse.           (line  22)
-* olc-recover:                           Functions.           (line  72)
-* olc-recover-compound:                  Functions.           (line  84)
-* olc-shorten:                           Functions.           (line  35)
-* olc-shorten-compound:                  Functions.           (line  48)
+* olc-recover:                           Functions.           (line  78)
+* olc-recover-compound:                  Functions.           (line  92)
+* olc-shorten:                           Functions.           (line  41)
+* olc-shorten-compound:                  Functions.           (line  54)
 
 
 
@@ -373,7 +379,7 @@ Node: olc-area1277
 Node: olc-parse2205
 Node: Errors3435
 Node: Functions7375
-Node: Index13244
+Node: Index13700
 
 End Tag Table
 

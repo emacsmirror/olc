@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 David Byers
 ;;
 ;; Author: David Byers <david.byers@liu.se>
-;; Version: 1.3.0
+;; Version: 1.4.0
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: extensions, lisp
 ;; URL: https://gitlab.liu.se/davby02/olc
@@ -372,7 +372,7 @@ compound open location code (i.e. everything up to the first
 space character is a valid code)."
     (or (olc-parse-p code)
         (save-match-data
-          (when (and compound (string-match " " code))
+          (when (and compound (string-match "\\s-+" code))
             (setq code (substring code 0 (match-beginning 0))))
           (let ((case-fold-search t))
 
@@ -491,7 +491,7 @@ raise an error."
     (apply #'string code)))
 
 
-(defun olc-decode (code)
+(cl-defun olc-decode (code &key (format 'area))
   "Decode open location code CODE.
 
 Returns an `olc-area' structure.  Raises `olc-parse-error' if the
@@ -499,9 +499,16 @@ code can't be parsed, and `olc-decode-error' if it can't be
 decoded (e.g. a padded shortened code, a padded code with grid
 coordinates, an empty code, and so forth).
 
+If FORMAT is `area' (the default), the returned value is an full
+open location code. If FORMAT is `latlon' it is a list (LATITUDE
+LONGITUDE) representing the center of the location.
+
 Since this function uses floating point calculations, the results
 are not identical to e.g. the C++ reference implementation.  The
 differences, however, are extremely small."
+  (cl-check-type code (or stringp olc-parse))
+  (cl-check-type format (member latlon area))
+
   (let* ((parse (olc-parse-code code))
          (latscale (* (expt 20 4) (expt 5 5)))
          (lonscale (* (expt 20 4) (expt 4 5)))
@@ -534,10 +541,13 @@ differences, however, are extremely small."
                       lon (+ lon (* lonsize (% coord 4))))))
             (olc-parse-grid parse)))
 
-    (olc-area-create :latlo (/ lat (float latscale))
-                     :lonlo (/ lon (float lonscale))
-                     :lathi (/ (+ lat latsize) (float latscale))
-                     :lonhi (/ (+ lon lonsize) (float lonscale)))))
+    (if (eq format 'area)
+        (olc-area-create :latlo (/ lat (float latscale))
+                         :lonlo (/ lon (float lonscale))
+                         :lathi (/ (+ lat latsize) (float latscale))
+                         :lonhi (/ (+ lon lonsize) (float lonscale)))
+      (list (/ (+ lat (/ latsize 2)) (float latscale))
+            (/ (+ lon (/ lonsize 2)) (float lonscale))))))
 
 
 (cl-defun olc-shorten (code lat lon &key (limit 12))
@@ -678,11 +688,10 @@ faster.
   "Recover shortened code CODE from coordinates LAT and LON.
 
 Recovers the closest point to coordinates LAT and LON with a code
-that can be shortened to CODE. If FORMAT is `latlon', then the
-center of the recovered area (LATITUDE . LONGITUDE) is returned.
-
-If FORMAT is `area' (or any other value), the returned value is an
-full open location code."
+that can be shortened to CODE. If FORMAT is `area' (the default),
+the returned value is an full open location code. If FORMAT is
+`latlon' it is a list (LATITUDE LONGITUDE) representing the
+center of the location."
   (cl-check-type code stringp)
   (cl-check-type lat number)
   (cl-check-type lon number)
@@ -692,7 +701,7 @@ full open location code."
     (if (olc-is-full parse)
         (if (eq format 'latlon)
             (let ((area (olc-decode parse)))
-              (cons (olc-area-lat area)
+              (list (olc-area-lat area)
                     (olc-area-lon area)))
           (upcase code))
       (setq lat (olc-clip-latitude lat)
@@ -719,7 +728,7 @@ full open location code."
                (setq lon (+ (olc-area-lon area) resolution)))
               (t (setq lon (olc-area-lon area))))
         (if (eq format 'latlon)
-            (cons lat lon)
+            (list lat lon)
           (olc-encode lat lon :len (olc-parse-precision parse)))))))
 
 
@@ -729,8 +738,9 @@ full open location code."
 Optional keyword argument REF indicates the reference to use. If
 not specified, the reference is assumed to be embedded into CODE.
 
-If FORMAT is `area' (or any other value), the returned value is an
-full open location code."
+If FORMAT is `area' (the default), the returned value is an full
+open location code. If FORMAT is `latlon' it is a list (LATITUDE
+LONGITUDE) representing the center of the location."
   ;; Make sure we can do requests
   (save-match-data
     (unless (fboundp 'request) (signal 'void-function '(request)))

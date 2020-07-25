@@ -246,6 +246,11 @@ if the code can't be parsed, and @code{olc-decode-error} if it can't
 be decoded (e.g. a padded shortened code, a padded code with grid
 coordinates, an empty code, and so forth).
 
+If @var{format} is @samp{area} (the default), the returned value is an
+full open location code. If @var{format} is @samp{latlon} it is a list
+(@var{latitude} @var{longitude}) representing the center of the
+location.
+
 @example
 @group
 (olc-decode "9FCQ9HXG+4CG")
@@ -254,6 +259,8 @@ coordinates, an empty code, and so forth).
 @result{} 58.3978125
 (olc-area-lon (olc-decode "9FCQ9HXG+4CG"))
 @result{} 15.576078125
+(olc-decode "9FCQ9HXG+4CG" :format 'latlon)
+@result{} (58.3978125 15.576078125)
 @end group
 @end example
 @end defun
@@ -278,15 +285,15 @@ or shortened code, of if @var{limit} is not even.
 
 @defun olc-shorten-compound code &key limit
 Shorten @var{code}, which must be a full open location code, finding a
-reference near the encoded location. If @var{limit} is non-nil, then
-the code will be shortened by at most that many digits. If the code
-can't be shortened, the original code is returned.
+reference near the encoded location. If @var{limit} is non-@code{nil},
+then the code will be shortened by at most that many digits. If the
+code can't be shortened, the original code is returned.
 
-If @var{zoom} is non-nil, then limit references to that zoom level.
-The default is 8 and the maximum is 18. Higher zoom levels yield more
-precise but longer references. Lower zoom levels yield simpler
-references but longer codes. The default seems to usually produce
-codes with four characters before the plus sign.
+If @var{zoom} is non-@code{nil}, then limit references to that zoom
+level.  The default is 8 and the maximum is 18. Higher zoom levels
+yield more precise but longer references. Lower zoom levels yield
+simpler references but longer codes. The default seems to usually
+produce codes with four characters before the plus sign.
 
 @code{olc-shorten-error} is raised if @var{code} is a padded or
 shortened code, of if @var{limit} is not even.
@@ -309,33 +316,37 @@ shortened code, of if @var{limit} is not even.
 Recover the closest point to coordinates @var{lat} and @var{lon} with
 a code that can be shortened to @var{code}. If @var{format} is
 @code{latlon}, then the center of the recovered area (@var{latitude} .
-@var{longitude}) is returned. If @var{format} is @code{area} (or any other
-value), the returned value is an full open location code.
+@var{longitude}) is returned.
+
+If @var{format} is @samp{area} (the default), the returned value is an
+full open location code. If @var{format} is @samp{latlon} it is a list
+(@var{latitude} @var{longitude}) representing the center of the
+location.
 
 @example
 @group
 (olc-recover "+2VX" 51.3701125 -1.217765625)
 @result{} "9C3W9QCJ+2VX"
 (olc-recover "+2VX" 51.3701125 -1.217765625 :format 'latlon)
-@result{} (51.370112500000005 . -1.2177656250000002)
+@result{} (51.370112500000005 -1.2177656250000002)
 @end group
 @end example
 @end defun
 
-@defun olc-recover-compound arg1 &optional arg2 &key format
+@defun olc-recover-compound code &key ref format
 Recover a shortened code @i{without} the reference latitude and
 longitude.
 
-When called with one argument, it must be a string consisting of a
-shortened open location code followed by whitespace and a geographical
+@var{code} is the (shortened) code to decode. @var{ref} is either
+@code{nil} or the geographical reference to use instead of latitude
+and longitude. If @var{ref} is @code{nil}, then @var{code} must end
+with the geographical reference, separated from the code by
+whitespace.
+
+If @var{format} is @samp{area} (the default), the returned value is an
+full open location code. If @var{format} is @samp{latlon} it is a list
+(@var{latitude} @var{longitude}) representing the center of the
 location.
-
-When called with two strings, the first must be a shortened open
-location code and the second if the geographical location.
-
-Optionally, the last argument in either case can be a symbol
-indicating the format of the return value (see @code{olc-recover} for
-details).
 
 @example
 @group
@@ -344,7 +355,7 @@ details).
 (olc-recover-compound "M24Q+89" "Mutitjulu")
 @result{} "5Q6HM24Q+89"
 (olc-recover-compound "M24Q+89" "Mutitjulu" :format 'latlon)
-@result{} (-25.344187500000004 . 131.0384375)
+@result{} (-25.344187500000004 131.0384375)
 @end group
 @end example
 
@@ -356,24 +367,25 @@ the API (e.g., one request per second, tops, allowed).
 
 @defun olc-is-valid code &key compound
 Returns non-@code{nil} if @var{code} is a valid open location code. If
-@var{compound} is non-nil, then check only up to the first space
-character so non-nil is returned for strings that look like compound
-codes.
+@var{compound} is non-@code{nil}, then check only up to the first
+space character so non-@code{nil} is returned for strings that look
+like compound codes.
 @end defun
 
 @defun olc-is-short code &key compound
 Returns non-@code{nil} if @var{code} is a valid short location code.
-If @var{compound} is non-nil, then check only up to the first space
-character so non-nil is returned for strings that look like compound
-codes. Returns @code{nil} for valid full and for invalid codes.
+If @var{compound} is non-@code{nil}, then check only up to the first
+space character so non-@code{nil} is returned for strings that look
+like compound codes. Returns @code{nil} for valid full and for invalid
+codes.
 @end defun
 
 @defun olc-is-full code &key compound
 Returns non-@code{nil} if @var{code} is a valid full open location
-code. If @var{compound} is non-nil, then check only up to the first
-space character so non-nil is returned for strings that look like
-compound codes. Returns @code{nil} for valid short and for invalid
-codes.
+code. If @var{compound} is non-@code{nil}, then check only up to the
+first space character so non-@code{nil} is returned for strings that
+look like compound codes. Returns @code{nil} for valid short and for
+invalid codes.
 @end defun
 
 
