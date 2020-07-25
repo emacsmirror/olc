@@ -388,8 +388,6 @@
 
     ))
 
-
-
 (defun olctest-issue-1 ()
   (olctest-testcase "local:issue-1"
     (olctest-assert-error (:exp (wrong-type-argument) :msg "F1")
@@ -412,11 +410,11 @@
                      :act (olc-recover-compound "9FFV9VH8+9C" :ref "Antarctica")
                      :msg "O1")
 
-    (olctest-equal :exp '(-89.99875 . -179.99875)
+    (olctest-equal :exp '(-89.99875 -179.99875)
                    :act (olc-recover "22222222+" 0 0 :format 'latlon)
                    :msg "O4")
 
-    (olctest-equal :exp '(-89.99875 . -179.99875)
+    (olctest-equal :exp '(-89.99875 -179.99875)
                    :act (olc-recover-compound "22222222+" :format 'latlon)
                    :msg "O4")
 
@@ -496,7 +494,7 @@
     ))
 
 (defun olctest-issue-5 ()
-  (olctest-testcase "issue-5"
+  (olctest-testcase "local:issue-5"
       (olctest-string= :exp "https://nominatim.openstreetmap.org/search"
                        :act (olc-nominatim-endpoint "search")
                        :msg "1")
@@ -512,7 +510,7 @@
                        :msg "3"))))
 
 (defun olctest-issue-6 ()
-  (olctest-testcase "issue-6"
+  (olctest-testcase "local:issue-6"
     (olctest-equal :exp t :act (olc-is-valid "2222+"))
     (olctest-equal :exp t :act (olc-is-valid "2222+" :compound t))
     (olctest-equal :exp nil :act (olc-is-valid "2222+ Sweden"))
@@ -538,6 +536,13 @@
     ))
 
 
+(defun olctest-issue-7 ()
+  (olctest-testcase "local:issue-7"
+    (olctest-equal :exp '(58.3978125 15.576078125)
+                   :act (olc-decode "9FCQ9HXG+4CG" :format 'latlon)
+                   :msg "1")))
+
+
 (defvar olctest-selected-tests)
 
 (defmacro run-test (arg)
@@ -556,6 +561,7 @@
          (run-test validity)
          (run-test localtests)
          (run-test errors)
+         (run-test issue-7)
          (run-test issue-6)
          (run-test issue-5)
          (run-test issue-3)

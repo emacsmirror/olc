@@ -1,5 +1,18 @@
 2020-07-25  David Byers  <david.byers@liu.se>
 
+	Fix issue #7:
+	* olc.texi: Fix documentation of olc-recover-compound, which was
+	plain wrong. Add documentation and examples for the "format"
+	keyword arg to olc-deocde. Update examples in olc-recover and
+	olc-recover-compound. Consistently format nil as code.
+
+	* olc.el (olc-recover): Change from cons to list in latlon return
+	value. Will still only bump minor versions since there are no
+	users other than me.
+	(olc-is-valid): More flexible match for the separator after the
+	code.
+	(olc-decode): Added the "format" keyword arg.
+
 	Fix issue #6:
 	* olc.texi (Functions): Document "compound". Correct error in
 	documentation of return value for olc-is-full and olc-is-short.
