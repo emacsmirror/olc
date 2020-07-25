@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 David Byers
 ;;
 ;; Author: David Byers <david.byers@liu.se>
-;; Version: 1.2.0
+;; Version: 1.3.0
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: extensions, lisp
 ;; URL: https://gitlab.liu.se/davby02/olc
@@ -247,7 +247,9 @@ raise, and args for the raised error.
     (/ (expt 20 -3) (expt 5 (- len 10)))))
 
 (cl-defun olc-parse-code (code)
-  "Parse an open location code CODE."
+  "Parse an open location code CODE.
+
+This function changes the match data."
   (if (olc-parse-p code)
       code
     (cl-check-type code stringp)
@@ -362,57 +364,71 @@ raise, and args for the raised error.
   "Regular expression for parsing codes.")
 
 
-(defun olc-is-valid (code)
-  "Return non-nil if CODE is a valid open location code."
-  (or (olc-parse-p code)
-      (save-match-data
-        (let ((case-fold-search t))
+(cl-defun olc-is-valid (code &key compound)
+  "Return non-nil if CODE is a valid open location code.
 
-          ;; The code is decomposed into PAIRS PADDING "+" SUFFIX.
-          ;;
-          ;; Rules:
-          ;;
-          ;; - For all codes:
-          ;;   - Pairs has an even (zero counts) length of at most 8.
-          ;;   - Suffix is either zero or between 2 and 8 characters.
-          ;;   - One or both of pairs and suffix must not be empty.
-          ;;
-          ;; - If there is padding:
-          ;;   - The suffix must be empty
-          ;;   - The length of pairs and padding combined must be 8
+If compound is non-nil, then return non-nil if CODE looks like a
+compound open location code (i.e. everything up to the first
+space character is a valid code)."
+    (or (olc-parse-p code)
+        (save-match-data
+          (when (and compound (string-match " " code))
+            (setq code (substring code 0 (match-beginning 0))))
+          (let ((case-fold-search t))
 
-          (when (string-match olc-code-regexp code)
-            (let ((pair-len (- (match-end 1) (match-beginning 1)))
-                  (padd-len (- (match-end 2) (match-beginning 2)))
-                  (suff-len (- (match-end 3) (match-beginning 3))))
-              (and (and (= 0 (% pair-len 2)) (<= pair-len 8)) ; Check pairs
-                   (and (<= suff-len 8) (/= suff-len 1)) ; Check suffix
-                   (> (+ pair-len suff-len) 0) ; Check for not empty
-                   (or (= padd-len 0)          ; Empty padding...
-                       (and (= suff-len 0)     ; ...or suffix
-                            (= (+ padd-len pair-len) 8))))))))))
+            ;; The code is decomposed into PAIRS PADDING "+" SUFFIX.
+            ;;
+            ;; Rules:
+            ;;
+            ;; - For all codes:
+            ;;   - Pairs has an even (zero counts) length of at most 8.
+            ;;   - Suffix is either zero or between 2 and 8 characters.
+            ;;   - One or both of pairs and suffix must not be empty.
+            ;;
+            ;; - If there is padding:
+            ;;   - The suffix must be empty
+            ;;   - The length of pairs and padding combined must be 8
 
-(defun olc-is-short (code)
+            (when (string-match olc-code-regexp code)
+              (let ((pair-len (- (match-end 1) (match-beginning 1)))
+                    (padd-len (- (match-end 2) (match-beginning 2)))
+                    (suff-len (- (match-end 3) (match-beginning 3))))
+                (and (and (= 0 (% pair-len 2)) (<= pair-len 8)) ; Check pairs
+                     (and (<= suff-len 8) (/= suff-len 1)) ; Check suffix
+                     (> (+ pair-len suff-len) 0) ; Check for not empty
+                     (or (= padd-len 0)          ; Empty padding...
+                         (and (= suff-len 0)     ; ...or suffix
+                              (= (+ padd-len pair-len) 8))))))))))
+
+(cl-defun olc-is-short (code &key compound)
   "Return non-nil if CODE is a valid short open location code.
+
+If compound is non-nil, then return non-nil if CODE looks like a
+compound open location code (i.e. everything up to the first
+space character is a valid short code).
 
 Note that nil means the code is either not short, or it is
 invalid."
   (if (olc-parse-p code)
       (olc-parse-short code)
-    (and (olc-is-valid code)
+    (and (olc-is-valid code :compound compound)
          (or (< (length code) 9)
              (and (>= (length code) 9)
                   (not (= (elt code 8) ?+)))))))
 
 
-(defun olc-is-full (code)
+(cl-defun olc-is-full (code &key compound)
   "Return non-nil if CODE is a valid long open location code.
+
+If compound is non-nil, then return non-nil if CODE looks like a
+compound open location code (i.e. everything up to the first
+space character is a valid short code).
 
 Note that nil means the code is either not long, or it is
 invalid."
   (if (olc-parse-p code)
       (not (olc-parse-short code))
-    (and (olc-is-valid code)
+    (and (olc-is-valid code :compound compound)
          (and (>= (length code) 9)
               (= (elt code 8) ?+)))))
 

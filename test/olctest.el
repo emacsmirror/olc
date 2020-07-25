@@ -511,6 +511,32 @@
                        :act (olc-nominatim-endpoint "reverse")
                        :msg "3"))))
 
+(defun olctest-issue-6 ()
+  (olctest-testcase "issue-6"
+    (olctest-equal :exp t :act (olc-is-valid "2222+"))
+    (olctest-equal :exp t :act (olc-is-valid "2222+" :compound t))
+    (olctest-equal :exp nil :act (olc-is-valid "2222+ Sweden"))
+    (olctest-equal :exp t :act (olc-is-valid "2222+ Sweden" :compound t))
+
+    (olctest-equal :exp t :act (olc-is-short "2222+"))
+    (olctest-equal :exp t :act (olc-is-short "2222+" :compound t))
+    (olctest-equal :exp nil :act (olc-is-short "2222+ Sweden"))
+    (olctest-equal :exp t :act (olc-is-short "2222+ Sweden" :compound t))
+    (olctest-equal :exp nil :act (olc-is-short "22222222+"))
+    (olctest-equal :exp nil :act (olc-is-short "22222222+" :compound t))
+    (olctest-equal :exp nil :act (olc-is-short "22222222+ Sweden"))
+    (olctest-equal :exp nil :act (olc-is-short "22222222+ Sweden" :compound t))
+
+    (olctest-equal :exp nil :act (olc-is-full "2222+"))
+    (olctest-equal :exp nil :act (olc-is-full "2222+" :compound t))
+    (olctest-equal :exp nil :act (olc-is-full "2222+ Sweden"))
+    (olctest-equal :exp nil :act (olc-is-full "2222+ Sweden" :compound t))
+    (olctest-equal :exp t :act (olc-is-full "22222222+"))
+    (olctest-equal :exp t :act (olc-is-full "22222222+" :compound t))
+    (olctest-equal :exp nil :act (olc-is-full "22222222+ Sweden"))
+    (olctest-equal :exp t :act (olc-is-full "22222222+ Sweden" :compound t))
+    ))
+
 
 (defvar olctest-selected-tests)
 
@@ -530,6 +556,7 @@
          (run-test validity)
          (run-test localtests)
          (run-test errors)
+         (run-test issue-6)
          (run-test issue-5)
          (run-test issue-3)
          (run-test issue-2)
