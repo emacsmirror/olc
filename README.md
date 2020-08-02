@@ -13,6 +13,38 @@ would refer to the same set of coordinates.
 For details about open location code and implementations in other
 languages, see https://github.com/google/open-location-code.
 
+## Installing
+
+To use `olc` you will need Emacs 25.1 or newer. To use the compound
+code functions you will also need to install `request`. You have two
+options: installing from MELPA or installing from source.
+
+### Installing from MELPA
+
+This is the easiest option. Load `package` and add MELPA to your
+`init.el` or `.emacs`::
+
+    (require 'package)
+    (add-to-list 'package-archives 
+                 '("melpa" . "https://melpa.org/packages/") t)
+
+Then::
+
+    M-x package-refresh-contents
+    M-x package-install RET olc RET
+
+Complete instructions for adding instructions at
+<https://melpa.org/#/getting-started>.
+
+
+### Installing from source
+
+If you download or clone the repository from https://gitlab.liu.se,
+then you can install by running `make` in the top-level directory of
+the source, and manually copying the `.el`, `.elc`, and `.info` files
+to your preferred location.
+
+
 ## Description
 
 This package implements an open location code library for emacs. It
@@ -60,7 +92,7 @@ Recovery using latitude and longitude as reference:
 "9C3W9QCJ+2VX"
 ````
 
-Recovery using a geographical reference (requires `requests` and uses
+Recovery using a geographical reference (requires `request` and uses
 the OpenStreetMap API):
 
 ````
