@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 David Byers
 ;;
 ;; Author: David Byers <david.byers@liu.se>
-;; Version: 1.4.0
+;; Version: 1.4.1
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: extensions, lisp
 ;; URL: https://gitlab.liu.se/davby02/olc
@@ -45,12 +45,11 @@
 (require 'request nil t)
 (require 'json nil t)
 
-;; Silence compiler if request is not on load-path at compile time
-;; Unfortunately check-declare can't handle these.
+;; Silence compiler if request is not on load-path at compile time.
 
-(declare-function request "request")
-(declare-function request-response-status-code "request")
-(declare-function request-response-data "request")
+(declare-function request "ext: request" t t)
+(declare-function request-response-status-code "ext: request" t t)
+(declare-function request-response-data "ext: request" t t)
 
 
 ;;; Variables:
@@ -175,7 +174,7 @@
   (lonhi nil :read-only t))
 
 (defsubst olc-area-lat (area)
-  "Get center latitute of AREA."
+  "Get center latitude of AREA."
   (min (+ (/ (- (olc-area-lathi area) (olc-area-latlo area)) 2)
           (olc-area-latlo area))
        90))
@@ -403,7 +402,7 @@ space character is a valid code)."
 (cl-defun olc-is-short (code &key compound)
   "Return non-nil if CODE is a valid short open location code.
 
-If compound is non-nil, then return non-nil if CODE looks like a
+If COMPOUND is non-nil, then return non-nil if CODE looks like a
 compound open location code (i.e. everything up to the first
 space character is a valid short code).
 
@@ -751,9 +750,9 @@ LONGITUDE) representing the center of the location."
 
     ;; Process code and check ref
     (cond ((string-match "^\\(\\S-+\\)\\s-+\\(.*\\)$" code)
-           (progn (cl-check-type ref null)
-                  (setq ref (match-string 2 code)
-                        code (match-string 1 code))))
+           (cl-check-type ref null)
+           (setq ref (match-string 2 code)
+                 code (match-string 1 code)))
           ((olc-is-full code))
           (t (cl-check-type ref stringp)))
 
