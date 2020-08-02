@@ -47,9 +47,9 @@
 
 ;; Silence compiler if request is not on load-path at compile time.
 
-(declare-function request "ext: request" t t)
-(declare-function request-response-status-code "ext: request" t t)
-(declare-function request-response-data "ext: request" t t)
+(declare-function request "ext:request" t t)
+(declare-function request-response-status-code "ext:request" t t)
+(declare-function request-response-data "ext:request" t t)
 
 
 ;;; Variables:
