@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 David Byers
 ;;
 ;; Author: David Byers <david.byers@liu.se>
-;; Version: 1.4.1
+;; Version: 1.5.1
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: extensions, lisp
 ;; URL: https://gitlab.liu.se/davby02/olc
