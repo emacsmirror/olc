@@ -192,21 +192,27 @@ Errors
      parent of the various recovery errors raised by ‘olc-recover’ and
      ‘olc-recover-compound’.
 
-‘olc-recover-error-geocoding-request’
-     The messags is ‘Reference location search failed’.  Raised when
-     geographical search fails due to an error at the HTTP layer.  The
+‘olc-recover-error-reference-search-failed’
+     The message is ‘Reference location search failed’.  Raised when
+     geographical search fails due to an error from the server.  The
      associated data is (CODE, REF) where REF is the reference being
      searched.
 
-‘olc-recover-error-geocoding-not-found’
-     The messags is ‘Reference location not found’.  Raised when
+‘olc-recover-error-reverejce-not-found’
+     The message is ‘Reference location not found’.  Raised when
      geographical search returns no result.  The associated data is
      (CODE, REF) where REF is the reference being searched.
 
-‘olc-recover-error-geocoding-invalid’
-     The messags is ‘Invalid reference location’.  Raised when
+‘olc-recover-error-invalid-reference’
+     The message is ‘Invalid reference location’.  Raised when
      geographical search returns an invalid result.  The associated data
      is (CODE, REF) where REF is the reference being searched.
+
+‘olc-http-error’
+     The message is ‘Error retrieving or parsing http request’.  Raised
+     when an http response cannot be parsed.  Note that http requests
+     that fail at the network layer, e.g.  due to name resolution
+     issues, will result in a standard error, not an olc-specific one.
 
 
 File: olc.info,  Node: Functions,  Next: Index,  Prev: Errors,  Up: Top
@@ -320,10 +326,10 @@ Functions
           (olc-recover-compound "M24Q+89" "Mutitjulu" :format 'latlon)
           ⇒ (-25.344187500000004 131.0384375)
 
-     This function requires the ‘request’ package to be installed, and
-     uses the OpenStreetMap API to convert the geographical reference to
-     coordinates.  Please make sure you follow the acceptable use policy
-     for the API (e.g., one request per second, tops, allowed).
+     This function uses the OpenStreetMap API to convert the
+     geographical reference to coordinates.  Please make sure you follow
+     the acceptable use policy for the API (e.g., one request per
+     second, tops, allowed).
 
  -- Function: olc-is-valid code &key compound
      Returns non-‘nil’ if CODE is a valid open location code.  If
@@ -385,8 +391,8 @@ Node: Data types1146
 Node: olc-area1524
 Node: olc-parse2452
 Node: Errors3682
-Node: Functions7622
-Node: Index13947
+Node: Functions7931
+Node: Index14200
 
 End Tag Table
 

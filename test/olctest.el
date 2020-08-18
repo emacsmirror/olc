@@ -262,7 +262,9 @@
 
     (olctest-equal :act (olc-shorten-compound "546FWWM2+F6")
                    :exp "WWM2+F6 Adamstown, Pitcairn")
-    ))
+
+    (olctest-equal :act (olc-shorten-compound "22QQ22QQ+QQ")
+		   :exp "22QQ22QQ+QQ")))
 
 
 (defun olctest-issue-3 ()
@@ -487,25 +489,25 @@
       (olc-recover-compound "22+ Nowhere Special, Pitcairn"))
 
     (let ((olc-nominatim-url "https://invalid.domain/nominatim"))
-      (olctest-assert-error (:exp ((olc-recover-error-reference-search-failed
-                                    "22+" "Sweden")) :msg "R2")
+      (olctest-assert-error (:exp ((error "invalid.domain/443 Name or service not known"))
+				   :msg "R2")
         (olc-recover-compound "22+ Sweden")))
 
     ))
 
 (defun olctest-issue-5 ()
   (olctest-testcase "local:issue-5"
-      (olctest-string= :exp "https://nominatim.openstreetmap.org/search"
+      (olctest-string= :exp "https://nominatim.openstreetmap.org/search?format=json"
                        :act (olc-nominatim-endpoint "search")
                        :msg "1")
 
     (let ((olc-nominatim-url "https://nominatim.invalid"))
-      (olctest-string= :exp "https://nominatim.invalid/search"
+      (olctest-string= :exp "https://nominatim.invalid/search?format=json"
                        :act (olc-nominatim-endpoint "search")
                        :msg "2"))
 
     (let ((olc-nominatim-url "https://nominatim.invalid/"))
-      (olctest-string= :exp "https://nominatim.invalid/reverse"
+      (olctest-string= :exp "https://nominatim.invalid/reverse?format=json"
                        :act (olc-nominatim-endpoint "reverse")
                        :msg "3"))))
 
@@ -577,3 +579,9 @@
          (error (message (format "error: %s %s" (car err) (cdr err))) nil))
        0 1)))
 
+
+;;; Local Variables:
+;;; change-log-default-name: "CHANGELOG"
+;;; End:
+
+;;; olctest.el ends here

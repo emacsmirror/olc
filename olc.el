@@ -25,9 +25,9 @@
 ;;; Commentary:
 
 ;; This program provides basic open location code support in Emacs
-;; Lisp.  The support for recovering shortened codes depends on the
-;; request library and uses OpenStreetMap; please check the terms of
-;; use for the service to ensure that you remain compliant.
+;; Lisp. Recovery of shortened codes uses OpenStreetMap nominatim;
+;; please check the terms of use for the service to ensure that your
+;; use complies with the API terms of use.
 ;;
 ;; All methods required by the open location code specification are
 ;; provided in some form.  The implementation passed the tests present
@@ -42,14 +42,8 @@
 ;; (which is a pain in the backside). So cl-lib it is.
 
 (require 'cl-lib)
-(require 'request nil t)
-(require 'json nil t)
-
-;; Silence compiler if request is not on load-path at compile time.
-
-(declare-function request "ext:request" t t)
-(declare-function request-response-status-code "ext:request" t t)
-(declare-function request-response-data "ext:request" t t)
+(require 'json)
+(require 'mm-decode)
 
 
 ;;; Variables:
@@ -130,6 +124,10 @@
 (define-error 'olc-recover-error-invalid-reference
   "Invalid reference location"
   'olc-recover-error)
+
+(define-error 'olc-http-error
+  "Error retrieving or parsing http request"
+  'olc-error)
 
 
 ;;; Base 20 digits:
@@ -215,12 +213,22 @@ raise, and args for the raised error.
               (setq index (1+ index)))
             code))))
 
-(defun olc-nominatim-endpoint (path)
+(defun olc-url-encode-params (params)
+  "Encode PARAMS to be used as the query of an url."
+  (mapconcat (lambda (param)
+               (concat (url-hexify-string (format "%s" (car param)))
+                       "="
+                       (url-hexify-string (format "%s" (cdr param)))))
+             params "&"))
+
+(cl-defun olc-nominatim-endpoint (path &key (params nil))
   "Build a complete url for nominatim endpoint PATH."
   (concat olc-nominatim-url
           (if (= ?/ (elt olc-nominatim-url (1- (length olc-nominatim-url))))
               "" "/")
-          path))
+          path
+          "?"
+          (olc-url-encode-params (cons '(format . "json") params))))
 
 (defsubst olc-clip-latitude (lat)
   "Clip LAT to -90,90."
@@ -334,15 +342,15 @@ This function changes the match data."
                            pos (+ 2 pos)
                            precision (+ 2 precision))))))
 
-          ;; Parse grid
-          (while (< pos (length code))
-            (cond ((not (olc-valid-char (elt code pos)))
-                   (signal 'olc-parse-error-invalid-character
-                           (list code pos (string (elt code pos)))))
-                  ((>= (length grid) 5) (setq pos (1+ pos)))
-                  (t (setq grid (cons (elt code pos) grid)
-                           pos (1+ pos)
-                           precision (1+ precision)))))
+        ;; Parse grid
+        (while (< pos (length code))
+          (cond ((not (olc-valid-char (elt code pos)))
+                 (signal 'olc-parse-error-invalid-character
+                         (list code pos (string (elt code pos)))))
+                ((>= (length grid) 5) (setq pos (1+ pos)))
+                (t (setq grid (cons (elt code pos) grid)
+                         pos (1+ pos)
+                         precision (1+ precision)))))
 
         ;; Check for an empty code
         (unless pairs
@@ -369,35 +377,35 @@ This function changes the match data."
 If compound is non-nil, then return non-nil if CODE looks like a
 compound open location code (i.e. everything up to the first
 space character is a valid code)."
-    (or (olc-parse-p code)
-        (save-match-data
-          (when (and compound (string-match "\\s-+" code))
-            (setq code (substring code 0 (match-beginning 0))))
-          (let ((case-fold-search t))
+  (or (olc-parse-p code)
+      (save-match-data
+        (when (and compound (string-match "\\s-+" code))
+          (setq code (substring code 0 (match-beginning 0))))
+        (let ((case-fold-search t))
 
-            ;; The code is decomposed into PAIRS PADDING "+" SUFFIX.
-            ;;
-            ;; Rules:
-            ;;
-            ;; - For all codes:
-            ;;   - Pairs has an even (zero counts) length of at most 8.
-            ;;   - Suffix is either zero or between 2 and 8 characters.
-            ;;   - One or both of pairs and suffix must not be empty.
-            ;;
-            ;; - If there is padding:
-            ;;   - The suffix must be empty
-            ;;   - The length of pairs and padding combined must be 8
+          ;; The code is decomposed into PAIRS PADDING "+" SUFFIX.
+          ;;
+          ;; Rules:
+          ;;
+          ;; - For all codes:
+          ;;   - Pairs has an even (zero counts) length of at most 8.
+          ;;   - Suffix is either zero or between 2 and 8 characters.
+          ;;   - One or both of pairs and suffix must not be empty.
+          ;;
+          ;; - If there is padding:
+          ;;   - The suffix must be empty
+          ;;   - The length of pairs and padding combined must be 8
 
-            (when (string-match olc-code-regexp code)
-              (let ((pair-len (- (match-end 1) (match-beginning 1)))
-                    (padd-len (- (match-end 2) (match-beginning 2)))
-                    (suff-len (- (match-end 3) (match-beginning 3))))
-                (and (and (= 0 (% pair-len 2)) (<= pair-len 8)) ; Check pairs
-                     (and (<= suff-len 8) (/= suff-len 1)) ; Check suffix
-                     (> (+ pair-len suff-len) 0) ; Check for not empty
-                     (or (= padd-len 0)          ; Empty padding...
-                         (and (= suff-len 0)     ; ...or suffix
-                              (= (+ padd-len pair-len) 8))))))))))
+          (when (string-match olc-code-regexp code)
+            (let ((pair-len (- (match-end 1) (match-beginning 1)))
+                  (padd-len (- (match-end 2) (match-beginning 2)))
+                  (suff-len (- (match-end 3) (match-beginning 3))))
+              (and (and (= 0 (% pair-len 2)) (<= pair-len 8)) ; Check pairs
+                   (and (<= suff-len 8) (/= suff-len 1)) ; Check suffix
+                   (> (+ pair-len suff-len) 0) ; Check for not empty
+                   (or (= padd-len 0)          ; Empty padding...
+                       (and (= suff-len 0)     ; ...or suffix
+                            (= (+ padd-len pair-len) 8))))))))))
 
 (cl-defun olc-is-short (code &key compound)
   "Return non-nil if CODE is a valid short open location code.
@@ -584,6 +592,58 @@ shortened code, of if LIMIT is not positive and even."
                                      (min limit (* (car spec) 2))))))
         code))))
 
+(defun olc-http-parse-json ()
+  "Parse an http response as json in the current buffer."
+  (save-match-data
+    (goto-char (point-min))
+    (unless (looking-at "^\\s-*HTTP/[0-9.]+ \\([0-9]+\\) \\(.*\\)$")
+      (signal 'olc-http-error (list "invalid http response")))
+    (let ((code (string-to-number (match-string 1)))
+          mime body charset)
+
+      ;; Check the response code
+      (if (/= code 200)
+          (cons code nil)
+
+        ;; Delete first line so as not to confude the mime parser
+        (delete-region (point) (progn (forward-line 1) (point)))
+
+        ;; Parse the message as if it were a mime message
+        (setq mime (mm-dissect-buffer t t))
+
+        ;; Check that parsing was successful
+        (unless mime
+          (signal 'olc-http-error (list "unable to parse http response")))
+
+        ;; Check that it is the content type we want
+        (unless (string-equal "application/json" (car (mm-handle-type mime)))
+          (signal 'olc-http-error (list "invalid response type")))
+
+        ;; Extract and check the response charset
+        (setq charset (intern-soft
+                       (downcase (alist-get 'charset
+                                            (cdr (mm-handle-type mime))
+                                            "iso-8859-1"))))
+        (unless (and charset (coding-system-p charset))
+          (signal 'olc-http-error (list "unable to decode http response")))
+
+        ;; Decode the response body
+        (setq body (decode-coding-string
+                    (with-current-buffer (mm-handle-buffer mime)
+                      (buffer-string))
+                    charset t))
+
+        ;; Parse the body
+        (cons code (json-read-from-string body))))))
+
+(cl-defun olc-http-request-json (url &key (timeout 2))
+  "Perform an http request for URL with timeout TIMEOUT.
+
+Returns the result of the request, parsed as JSON."
+  (cl-check-type url stringp)
+  (with-current-buffer
+      (url-retrieve-synchronously url t nil timeout)
+    (olc-http-parse-json)))
 
 (cl-defun olc-shorten-compound (code &key (limit 4) (zoom '(1 18)))
   "Attempt to shorten CODE with a geographic reference.
@@ -643,17 +703,14 @@ faster.
     (catch 'result
       (while (< zoom-lo zoom-hi)
         (let* ((zoom (floor (+ zoom-lo zoom-hi) 2))
-               (resp (request-response-data
-                      (request
-                        (olc-nominatim-endpoint "reverse")
-                        :params `((lat . ,(olc-area-lat area))
-                                  (lon . ,(olc-area-lon area))
-                                  (zoom . ,zoom)
-                                  (format . "json"))
-                        :parser #'json-read
-                        :sync t)))
+               (resp (cdr (olc-http-request-json
+                           (olc-nominatim-endpoint
+                            "reverse"
+                            :params `((lat . ,(olc-area-lat area))
+                                      (lon . ,(olc-area-lon area))
+                                      (zoom . ,zoom))))))
                (tmp-code
-                (when resp
+                (when (and (assq 'lon resp) (assq 'lat resp))
                   (olc-shorten code
                                (string-to-number (alist-get 'lat resp))
                                (string-to-number (alist-get 'lon resp))
@@ -663,7 +720,7 @@ faster.
 
           ;; If resp is nil, then there's no point in going further
 
-          (if (null resp)
+          (if (null tmp-code)
               (setq zoom-lo zoom-hi)
 
             ;; Keep the shortest code we see that has at most limit
@@ -740,10 +797,7 @@ not specified, the reference is assumed to be embedded into CODE.
 If FORMAT is `area' (the default), the returned value is an full
 open location code. If FORMAT is `latlon' it is a list (LATITUDE
 LONGITUDE) representing the center of the location."
-  ;; Make sure we can do requests
   (save-match-data
-    (unless (fboundp 'request) (signal 'void-function '(request)))
-
     ;; Check types (defer check of ref)
     (cl-check-type code stringp)
     (cl-check-type format (member latlon area))
@@ -759,23 +813,21 @@ LONGITUDE) representing the center of the location."
     ;; If the code is full then return it
     (if (olc-is-full code)
         (olc-recover code 0 0 :format format)
-      (let ((resp (request (olc-nominatim-endpoint "search")
-                    :params `((q . ,ref)
-                              (format . "json")
-                              (limit . 1))
-                    :parser #'json-read
-                    :sync t)))
+      (let ((resp (olc-http-request-json
+                   (olc-nominatim-endpoint "search"
+                                           :params `((q . ,ref)
+                                                     (limit . 1))))))
 
         ;; Check that we got a response
-        (unless (eq 200 (request-response-status-code resp))
+        (unless (eq 200 (car resp))
           (signal 'olc-recover-error-reference-search-failed
                   (list code ref)))
 
-        (unless (> (length (request-response-data resp)) 0)
+        (unless (> (length (cdr resp)) 0)
           (signal 'olc-recover-error-reference-not-found
                   (list code ref)))
 
-        (let* ((data (elt (request-response-data resp) 0))
+        (let* ((data (elt (cdr resp) 0))
                (lat (alist-get 'lat data))
                (lon (alist-get 'lon data)))
 
@@ -792,5 +844,11 @@ LONGITUDE) representing the center of the location."
 
 
 (provide 'olc)
+
+;;; Local Variables:
+;;; change-log-default-name: "CHANGELOG"
+;;; sentence-end-double-space: nil
+;;; indent-tabs-mode: nil
+;;; End:
 
 ;;; olc.el ends here
