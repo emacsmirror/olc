@@ -1,3 +1,21 @@
+2020-08-18  David Byers  <david.byers@liu.se>
+
+	Resolve issue #10:
+	* olc.el (olc-http-error): New error.
+	(olc-http-parse-response): New function to (partially) parse an
+	HTTP response.
+	(olc-http-request-json): New function.
+	(olc-shorten-compound): Replace call to request.
+	(olc-recover-compound): Replace call to reqeust.
+	(json): Unconditionally require the json library.
+
+	* test/olctest.el (olctest-localtests): Added test for shortening
+	when geocoding fails.
+
+	* olc.texi: Correct some typos. Correct error names. Add
+	olc-http-error to the documentation. Remove references to the
+	request package.
+
 2020-07-25  David Byers  <david.byers@liu.se>
 
 	Fix issue #7:

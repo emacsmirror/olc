@@ -204,23 +204,29 @@ the code being recovered as its first element. This is the parent of
 the various recovery errors raised by @code{olc-recover} and
 @code{olc-recover-compound}.
 
-@item olc-recover-error-geocoding-request
-The messags is @samp{Reference location search failed}. Raised when
-geographical search fails due to an error at the HTTP layer. The
+@item olc-recover-error-reference-search-failed
+The message is @samp{Reference location search failed}. Raised when
+geographical search fails due to an error from the server. The
 associated data is (@var{code}, @var{ref}) where @var{ref} is the
 reference being searched.
 
-@item olc-recover-error-geocoding-not-found
-The messags is @samp{Reference location not found}. Raised when
+@item olc-recover-error-reverejce-not-found
+The message is @samp{Reference location not found}. Raised when
 geographical search returns no result. The associated data is
 (@var{code}, @var{ref}) where @var{ref} is the reference being
 searched.
 
-@item olc-recover-error-geocoding-invalid
-The messags is @samp{Invalid reference location}. Raised when
+@item olc-recover-error-invalid-reference
+The message is @samp{Invalid reference location}. Raised when
 geographical search returns an invalid result. The associated data is
 (@var{code}, @var{ref}) where @var{ref} is the reference being
 searched.
+
+@item olc-http-error
+The message is @samp{Error retrieving or parsing http request}. Raised
+when an http response cannot be parsed. Note that http requests that
+fail at the network layer, e.g. due to name resolution issues, will
+result in a standard error, not an olc-specific one.
 
 @end table
 
@@ -367,10 +373,9 @@ location.
 @end group
 @end example
 
-This function requires the @code{request} package to be installed, and
-uses the OpenStreetMap API to convert the geographical reference to
-coordinates. Please make sure you follow the acceptable use policy for
-the API (e.g., one request per second, tops, allowed).
+This function uses the OpenStreetMap API to convert the geographical
+reference to coordinates. Please make sure you follow the acceptable
+use policy for the API (e.g., one request per second, tops, allowed).
 @end defun
 
 @defun olc-is-valid code &key compound
@@ -404,3 +409,8 @@ invalid codes.
 @printindex fn
 
 @bye
+
+@c Local Variables:
+@c change-log-default-name: "CHANGELOG"
+@c End:
+
